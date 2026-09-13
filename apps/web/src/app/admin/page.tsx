@@ -236,16 +236,20 @@ export default function AdminPage() {
       modalAction === 'approve' ? 'approved' : modalAction === 'reject' ? 'rejected' : 'suspended';
 
     try {
-      const supabase = createClient();
       if (!selectedTherapist.userId.startsWith('demo-')) {
-        await supabase
-          .from('therapist_profiles')
-          .update({
+        const res = await fetch('/api/admin/therapist-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: selectedTherapist.userId,
             status: newStatus,
-            admin_note: adminNoteInput,
-            is_available_now: false,
-          })
-          .eq('user_id', selectedTherapist.userId);
+            adminNote: adminNoteInput,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error ?? 'Failed to update therapist status');
+        }
       }
 
       setTherapists((prev) =>

@@ -266,11 +266,11 @@ export default function TherapistProfilePage() {
       }}>
         <div style={{ maxWidth: 1000, margin: '0 auto', padding: '0 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '4rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <Link href="/dashboard" style={{ color: '#9ca3af', fontSize: '0.875rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <Link href="/dashboard" style={{ color: '#94a3b8', fontSize: '0.875rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               ← Dashboard
             </Link>
             <span style={{ color: 'rgba(255,255,255,0.2)' }}>/</span>
-            <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>Therapist Profile</span>
+            <span style={{ fontWeight: 600, fontSize: '0.95rem', color: '#f1f5f9' }}>Therapist Profile</span>
           </div>
 
           <Link
@@ -293,10 +293,10 @@ export default function TherapistProfilePage() {
       <main style={{ maxWidth: 1000, margin: '0 auto', padding: '2.5rem 1.5rem 5rem' }}>
         {/* Title */}
         <div className="fade-in-up" style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem', color: '#1e293b' }}>
+          <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem', color: '#f1f5f9' }}>
             Therapist <span className="gradient-text">Profile & Credentials</span>
           </h1>
-          <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
+          <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
             Complete your clinical background, license details, and specialties for client discovery and verification.
           </p>
         </div>
@@ -456,7 +456,7 @@ export default function TherapistProfilePage() {
 
           {/* Clinical Credentials Card */}
           <div className="glass" style={{ borderRadius: '1rem', padding: '2rem' }}>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1e293b' }}>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f1f5f9' }}>
               <IconIdCard size={20} color="#3b82f6" />
               <span>License & Credentials</span>
             </h2>
@@ -554,11 +554,12 @@ export default function TherapistProfilePage() {
                     {documentSignedUrl && (
                       <a
                         href={documentSignedUrl}
+                        download
                         target="_blank"
                         rel="noreferrer"
                         style={{ color: '#60a5fa', textDecoration: 'underline', marginLeft: '0.5rem' }}
                       >
-                        View File
+                        Download File
                       </a>
                     )}
                   </div>
@@ -606,7 +607,7 @@ export default function TherapistProfilePage() {
 
           {/* Languages */}
           <div className="glass" style={{ borderRadius: '1rem', padding: '2rem' }}>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1e293b' }}>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f1f5f9' }}>
               <IconGlobe size={20} color="#3b82f6" />
               <span>Languages Spoken</span>
             </h2>

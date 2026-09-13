@@ -83,9 +83,9 @@ function RegisterForm() {
     return (
       <div className="glass fade-in-up" style={{ width: '100%', maxWidth: 420, borderRadius: '1.25rem', padding: '2.5rem', textAlign: 'center' }}>
         <div style={{ marginBottom: '1rem', color: '#3b82f6' }}><IconUser size={44} /></div>
-        <h1 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.5rem' }}>Check your email</h1>
-        <p style={{ color: '#9ca3af', fontSize: '0.9rem', lineHeight: 1.6 }}>
-          We sent a confirmation link to <strong style={{ color: '#f9fafb' }}>{email}</strong>.
+        <h1 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.5rem', color: '#1e293b' }}>Check your email</h1>
+        <p style={{ color: '#475569', fontSize: '0.9rem', lineHeight: 1.6 }}>
+          We sent a confirmation link to <strong style={{ color: '#1e293b' }}>{email}</strong>.
           Click it to activate your account.
         </p>
         <Link href="/login" className="btn-ghost" style={{ display: 'block', textAlign: 'center', marginTop: '1.5rem', textDecoration: 'none' }}>
