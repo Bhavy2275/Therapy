@@ -17,6 +17,35 @@ export default function IncomingOfferModal() {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const passedOfferIdsRef = useRef<Set<string>>(new Set());
+
+  // Restore previously passed/dismissed offers from sessionStorage
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('therapist_passed_offers');
+      if (stored) {
+        const arr = JSON.parse(stored);
+        if (Array.isArray(arr)) {
+          arr.forEach((id) => {
+            if (typeof id === 'string') passedOfferIdsRef.current.add(id);
+          });
+        }
+      }
+    } catch {
+      // sessionStorage unavailable or parsing error
+    }
+  }, []);
+
+  const markOfferAsPassed = useCallback((sessionId: string) => {
+    if (!sessionId) return;
+    passedOfferIdsRef.current.add(sessionId);
+    try {
+      const arr = Array.from(passedOfferIdsRef.current).slice(-50);
+      sessionStorage.setItem('therapist_passed_offers', JSON.stringify(arr));
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const clearCurrentOffer = useCallback(() => {
     if (timerRef.current) {
@@ -53,6 +82,10 @@ export default function IncomingOfferModal() {
 
   const onOfferReceived = useCallback((newOffer: TherapistOfferPayload) => {
     if (!newOffer || !newOffer.sessionId) return;
+    // Don't show offers that the therapist already passed or that timed out
+    if (passedOfferIdsRef.current.has(newOffer.sessionId)) {
+      return;
+    }
     setOffer(newOffer);
     setOutcome(null);
     setIsAccepting(false);
@@ -68,13 +101,14 @@ export default function IncomingOfferModal() {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           if (timerRef.current) clearInterval(timerRef.current);
+          markOfferAsPassed(newOffer.sessionId);
           setOffer(null);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-  }, [triggerChime]);
+  }, [triggerChime, markOfferAsPassed]);
 
   useEffect(() => {
     let mounted = true;
@@ -88,11 +122,15 @@ export default function IncomingOfferModal() {
       .on('broadcast', { event: 'session:offer' }, (res: { payload: unknown }) => {
         if (!mounted) return;
         const newOffer = res.payload as TherapistOfferPayload;
+        if (newOffer?.sessionId && passedOfferIdsRef.current.has(newOffer.sessionId)) return;
         onOfferReceived(newOffer);
       })
       .on('broadcast', { event: 'session:offer_expired' }, (res: { payload: unknown }) => {
         if (!mounted) return;
         const data = res.payload as { sessionId: string };
+        if (data?.sessionId) {
+          markOfferAsPassed(data.sessionId);
+        }
         setOffer((current) => {
           if (current && current.sessionId === data?.sessionId) {
             if (timerRef.current) clearInterval(timerRef.current);
@@ -104,6 +142,9 @@ export default function IncomingOfferModal() {
       .on('broadcast', { event: 'session:accepted' }, (res: { payload: unknown }) => {
         if (!mounted) return;
         const data = res.payload as SessionMatchedPayload;
+        if (data?.sessionId) {
+          markOfferAsPassed(data.sessionId);
+        }
         setOffer((current) => {
           if (current && current.sessionId === data?.sessionId) {
             if (timerRef.current) clearInterval(timerRef.current);
@@ -118,12 +159,17 @@ export default function IncomingOfferModal() {
     async function checkPendingOffer() {
       if (!mounted) return;
       try {
-        const res = await fetch('/api/matching/pending');
+        const passedArr = Array.from(passedOfferIdsRef.current);
+        const queryStr = passedArr.length > 0 ? `?exclude=${encodeURIComponent(passedArr.join(','))}` : '';
+        const res = await fetch(`/api/matching/pending${queryStr}`);
         if (!res.ok) return;
         const data = await res.json();
         if (!mounted) return;
 
         if (data.hasOffer && data.offer) {
+          if (passedOfferIdsRef.current.has(data.offer.sessionId)) {
+            return;
+          }
           setOffer((curr) => {
             if (!curr || curr.sessionId !== data.offer.sessionId) {
               onOfferReceived(data.offer);
@@ -151,6 +197,9 @@ export default function IncomingOfferModal() {
         });
 
         socket.on('session:offer_expired', (data: { sessionId: string }) => {
+          if (data?.sessionId) {
+            markOfferAsPassed(data.sessionId);
+          }
           setOffer((current) => {
             if (current && current.sessionId === data.sessionId) {
               if (timerRef.current) clearInterval(timerRef.current);
@@ -162,6 +211,9 @@ export default function IncomingOfferModal() {
 
         socket.on('session:accepted', (data: SessionMatchedPayload) => {
           if (!mounted) return;
+          if (data?.sessionId) {
+            markOfferAsPassed(data.sessionId);
+          }
           if (timerRef.current) clearInterval(timerRef.current);
           setOutcome({
             status: 'won',
@@ -184,7 +236,7 @@ export default function IncomingOfferModal() {
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, [router, onOfferReceived]);
+  }, [router, onOfferReceived, markOfferAsPassed]);
 
   async function handleAccept() {
     if (!offer || isAccepting) return;
@@ -250,6 +302,9 @@ export default function IncomingOfferModal() {
   }
 
   function handlePass() {
+    if (offer?.sessionId) {
+      markOfferAsPassed(offer.sessionId);
+    }
     clearCurrentOffer();
   }
 

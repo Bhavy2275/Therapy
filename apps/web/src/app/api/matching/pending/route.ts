@@ -4,8 +4,14 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const excludeParam = searchParams.get('exclude');
+    const excludedIds = excludeParam
+      ? excludeParam.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+
     const serverClient = await createClient();
     const {
       data: { user },
@@ -31,7 +37,7 @@ export async function GET() {
 
     // Query pending instant sessions created in the last 65 seconds
     const cutoff = new Date(Date.now() - 65000).toISOString();
-    const { data: pendingSessions, error: queryError } = await adminClient
+    let query = adminClient
       .from('sessions')
       .select(`
         id,
@@ -49,8 +55,13 @@ export async function GET() {
       .eq('status', 'pending')
       .eq('mode', 'instant')
       .gt('created_at', cutoff)
-      .order('created_at', { ascending: false })
-      .limit(1);
+      .order('created_at', { ascending: false });
+
+    if (excludedIds.length > 0) {
+      query = query.not('id', 'in', `(${excludedIds.join(',')})`);
+    }
+
+    const { data: pendingSessions, error: queryError } = await query.limit(1);
 
     if (queryError) {
       console.error('[matching/pending] Query error:', queryError);
@@ -62,6 +73,11 @@ export async function GET() {
     }
 
     const session = pendingSessions[0];
+
+    // Extra safeguard: in-memory check if excluded
+    if (excludedIds.includes(session.id)) {
+      return NextResponse.json({ hasOffer: false }, { status: 200 });
+    }
     const userObj = Array.isArray(session.users) ? session.users[0] : session.users;
     const clientName = (userObj as { full_name?: string })?.full_name || 'Client';
     const createdAtMs = new Date(session.created_at).getTime();
