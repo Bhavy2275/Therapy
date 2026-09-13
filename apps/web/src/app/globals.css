@@ -1,0 +1,234 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+
+  /* Therapeutic Palette */
+  --color-canvas: #f8f9fa;
+  --color-surface: #ffffff;
+  --color-slate-deep: #1e293b;
+  --color-slate-muted: #64748b;
+  --color-blue-calm: #3b82f6;
+  --color-blue-hover: #2563eb;
+  --color-sage: #84a98c;
+  --color-sage-soft: #e2e8f0;
+  --color-crisis: #9f1239;
+}
+
+/* ── Base Canvas ─────────────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #f8f9fa;
+  color: #1e293b;
+  font-family: var(--font-sans);
+}
+
+/* ── Brand Logo & Text Accent ────────────────────────────────────────────── */
+.gradient-text {
+  color: #3b82f6;
+  font-weight: 800;
+}
+
+/* ── Surface Containers / Lifted Cards ───────────────────────────────────── */
+.glass {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px -2px rgba(100, 116, 139, 0.07);
+}
+
+.feature-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 12px -2px rgba(100, 116, 139, 0.05);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-2px);
+  border-color: #3b82f6;
+  box-shadow: 0 8px 24px -4px rgba(59, 130, 246, 0.12);
+}
+
+/* ── Background Mesh ─────────────────────────────────────────────────────── */
+.mesh-bg {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* ── Primary CTA Button (Calm Sky Blue) ──────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 2rem;
+  background: #3b82f6;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border-radius: 0.75rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.25);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.35);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── Secondary Ghost Button / Soft Border ────────────────────────────────── */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #ffffff;
+  color: #64748b;
+  font-weight: 500;
+  font-size: 0.95rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.btn-ghost:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+  border-color: #cbd5e1;
+}
+
+/* ── Crisis / SOS Button (Muted Plum / Crimson) ─────────────────────────── */
+.btn-crisis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.75rem;
+  background: #9f1239;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 0.75rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 4px 14px rgba(159, 18, 57, 0.25);
+}
+
+.btn-crisis:hover {
+  background: #881337;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(159, 18, 57, 0.35);
+}
+
+/* ── Sage Tag / Badge ────────────────────────────────────────────────────── */
+.tag-sage {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(132, 169, 140, 0.15);
+  color: #2d5a3c;
+  border: 1px solid rgba(132, 169, 140, 0.35);
+  border-radius: 0.5rem;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* ── Form Inputs ─────────────────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.65rem;
+  color: #1e293b;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input::placeholder {
+  color: #94a3b8;
+}
+
+.input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.input-error {
+  border-color: #9f1239 !important;
+}
+
+/* ── Spinner ─────────────────────────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  width: 1.1em;
+  height: 1.1em;
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Fade in ─────────────────────────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.4s ease both;
+}
+
+/* ── Radar Pulse Animation ───────────────────────────────────────────────── */
+@keyframes radarPulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 28px rgba(59, 130, 246, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+
+@keyframes rippleWave {
+  0% { transform: scale(0.6); opacity: 0.7; }
+  50% { opacity: 0.3; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.radar-circle {
+  animation: radarPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.ripple-wave {
+  animation: rippleWave 2.5s cubic-bezier(0.1, 0.2, 0.7, 1) infinite;
+}
+
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
+.delay-4 { animation-delay: 0.4s; }

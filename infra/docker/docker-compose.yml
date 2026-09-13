@@ -1,0 +1,66 @@
+version: '3.9'
+
+services:
+  # ── PostgreSQL (local dev alternative to Supabase) ───────────────────────────
+  # Use this for fully local dev. For Supabase cloud, skip this container.
+  postgres:
+    image: supabase/postgres:15.1.0.117
+    container_name: therapy_postgres
+    restart: unless-stopped
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: therapy_platform
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../infra/supabase/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis (local alternative to Upstash) ─────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: therapy_redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── NestJS API ────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ../../services/api
+      dockerfile: ../../infra/docker/api.Dockerfile
+    container_name: therapy_api
+    restart: unless-stopped
+    ports:
+      - '3001:3001'
+    environment:
+      - API_PORT=3001
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/therapy_platform
+      - UPSTASH_REDIS_REST_URL=redis://redis:6379
+      - JWT_SECRET=local-dev-secret-change-in-prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../../services/api:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:
+  redis_data:
