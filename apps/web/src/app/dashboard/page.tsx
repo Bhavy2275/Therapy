@@ -88,16 +88,18 @@ export default async function DashboardPage() {
 
   let therapistStatus: 'pending' | 'approved' | 'rejected' | 'suspended' = 'pending';
   let therapistNote: string | null = null;
+  let isAvailableNow = false;
 
   if (role === 'therapist') {
     const { data: tp } = await supabase
       .from('therapist_profiles')
-      .select('status, admin_note')
+      .select('status, admin_note, is_available_now')
       .eq('user_id', user.id)
       .single();
     if (tp) {
       therapistStatus = tp.status ?? 'pending';
       therapistNote = tp.admin_note ?? null;
+      isAvailableNow = !!tp.is_available_now;
     }
   }
 
@@ -209,7 +211,11 @@ export default async function DashboardPage() {
         {/* Dashboards */}
         {role === 'client' && <ClientDashboard nextSession={nextSession} />}
         {role === 'therapist' && (
-          <TherapistDashboard status={therapistStatus} note={therapistNote} />
+          <TherapistDashboard
+            status={therapistStatus}
+            note={therapistNote}
+            isAvailable={isAvailableNow}
+          />
         )}
         {role === 'admin' && <AdminDashboard />}
       </main>
@@ -348,9 +354,11 @@ function ClientDashboard({
 function TherapistDashboard({
   status,
   note,
+  isAvailable = false,
 }: {
   status: 'pending' | 'approved' | 'rejected' | 'suspended';
   note: string | null;
+  isAvailable?: boolean;
 }) {
   return (
     <div>
@@ -429,7 +437,7 @@ function TherapistDashboard({
       </div>
 
       <IncomingOfferModal />
-      {status === 'approved' && <TherapistPresenceBar />}
+      {status === 'approved' && <TherapistPresenceBar initialAvailable={isAvailable} />}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
         <DashCard

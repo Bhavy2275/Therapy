@@ -2,26 +2,48 @@
 
 import { useState, useEffect } from 'react';
 import { getMatchingSocket } from '@/lib/socket';
+import { createClient } from '@/lib/supabase/client';
 
-export default function TherapistPresenceBar() {
-  const [isAvailable, setIsAvailable] = useState(false);
+interface TherapistPresenceBarProps {
+  initialAvailable?: boolean;
+}
+
+export default function TherapistPresenceBar({ initialAvailable = false }: TherapistPresenceBarProps) {
+  const [isAvailable, setIsAvailable] = useState(initialAvailable);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Sync latest is_available_now state from Supabase on mount
   useEffect(() => {
     let mounted = true;
+    const supabase = createClient();
 
-    // Connect socket on mount to register presence
-    getMatchingSocket()
-      .then((socket) => {
-        if (!mounted) return;
-        // If socket connects, keep presence updated
-      })
-      .catch((err) => {
-        if (mounted) {
-          console.warn('Socket connection warning in PresenceBar:', err);
+    async function initPresence() {
+      try {
+        const userRes = await supabase.auth.getUser();
+        const user = userRes.data?.user;
+        if (!user || !mounted) return;
+
+        const profileRes = await supabase
+          .from('therapist_profiles')
+          .select('is_available_now')
+          .eq('user_id', user.id)
+          .single();
+
+        if (mounted && profileRes.data) {
+          setIsAvailable(Boolean(profileRes.data.is_available_now));
         }
-      });
+      } catch (err) {
+        console.warn('Presence sync error:', err);
+      }
+    }
+
+    initPresence();
+
+    // Best-effort matching socket connection
+    getMatchingSocket().catch((err) => {
+      console.warn('Socket connection warning in PresenceBar:', err);
+    });
 
     return () => {
       mounted = false;
@@ -34,29 +56,50 @@ export default function TherapistPresenceBar() {
     const nextState = !isAvailable;
 
     try {
-      const socket = await getMatchingSocket();
-      socket.emit(
-        'therapist:presence',
-        { isAvailable: nextState },
-        (response: { success?: boolean; error?: string }) => {
-          setLoading(false);
-          if (response?.error) {
-            setError(response.error);
-          } else {
-            setIsAvailable(nextState);
-          }
-        },
-      );
-    } catch {
+      // 1. Direct database update in Supabase (primary persistence)
+      const supabase = createClient();
+      const userRes = await supabase.auth.getUser();
+      const user = userRes.data?.user;
+
+      if (user) {
+        const { error: dbError } = await supabase
+          .from('therapist_profiles')
+          .update({ is_available_now: nextState })
+          .eq('user_id', user.id);
+
+        if (dbError) {
+          throw new Error(dbError.message);
+        }
+      }
+
+      // 2. Best-effort Socket notification with a 2-second timeout so it never hangs
+      try {
+        const socketPromise = getMatchingSocket();
+        const timeoutPromise = new Promise<null>((resolve) =>
+          setTimeout(() => resolve(null), 2000),
+        );
+        const socket = await Promise.race([socketPromise, timeoutPromise]);
+        if (socket && socket.connected) {
+          socket.emit('therapist:presence', { isAvailable: nextState });
+        }
+      } catch {
+        // Socket gateway might not be active, but DB is successfully updated
+      }
+
+      setIsAvailable(nextState);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update presence.';
+      setError(msg);
+    } finally {
+      // Ensure the button never stays stuck in "Updating..."
       setLoading(false);
-      setError('Failed to connect to matching gateway.');
     }
   }
 
   return (
     <div
-      className="glass"
       style={{
+        background: '#ffffff',
         borderRadius: '1rem',
         padding: '1.25rem 1.5rem',
         marginBottom: '2rem',
@@ -66,11 +109,11 @@ export default function TherapistPresenceBar() {
         flexWrap: 'wrap',
         gap: '1rem',
         border: isAvailable
-          ? '1px solid rgba(16, 185, 129, 0.4)'
-          : '1px solid rgba(255, 255, 255, 0.08)',
+          ? '1px solid rgba(16, 185, 129, 0.45)'
+          : '1px solid #e2e8f0',
         boxShadow: isAvailable
-          ? '0 0 25px rgba(16, 185, 129, 0.15)'
-          : 'none',
+          ? '0 4px 20px rgba(16, 185, 129, 0.12)'
+          : '0 1px 3px rgba(0, 0, 0, 0.05)',
         transition: 'all 0.3s ease',
       }}
     >
@@ -81,7 +124,7 @@ export default function TherapistPresenceBar() {
               width: 16,
               height: 16,
               borderRadius: '50%',
-              background: isAvailable ? '#10b981' : '#6b7280',
+              background: isAvailable ? '#10b981' : '#94a3b8',
               boxShadow: isAvailable ? '0 0 10px #10b981' : 'none',
               transition: 'background 0.3s',
             }}
@@ -102,29 +145,30 @@ export default function TherapistPresenceBar() {
 
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontWeight: 700, fontSize: '1rem', color: '#f9fafb' }}>
+            <span style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b' }}>
               {isAvailable ? 'Instant Session Radar: Online' : 'Instant Session Radar: Offline'}
             </span>
             <span
               style={{
                 fontSize: '0.72rem',
                 fontWeight: 600,
-                padding: '0.15rem 0.5rem',
+                padding: '0.2rem 0.55rem',
                 borderRadius: '0.35rem',
-                background: isAvailable ? 'rgba(16, 185, 129, 0.15)' : 'rgba(107, 114, 128, 0.15)',
-                color: isAvailable ? '#34d399' : '#9ca3af',
+                background: isAvailable ? 'rgba(16, 185, 129, 0.12)' : '#f1f5f9',
+                color: isAvailable ? '#059669' : '#475569',
+                border: isAvailable ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid #e2e8f0',
               }}
             >
               {isAvailable ? 'RECEIVING REQUESTS' : 'STANDBY'}
             </span>
           </div>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: '#9ca3af', marginTop: '0.2rem' }}>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>
             {isAvailable
               ? 'You are visible to clients seeking instant therapy. When a client requests, you will receive an offer alert.'
               : 'Toggle online when you have immediate availability to take 45-min live sessions.'}
           </p>
           {error && (
-            <p style={{ margin: 0, fontSize: '0.8rem', color: '#f87171', marginTop: '0.25rem' }}>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: '#dc2626', marginTop: '0.25rem' }}>
               {error}
             </p>
           )}
@@ -135,14 +179,22 @@ export default function TherapistPresenceBar() {
         type="button"
         onClick={handleTogglePresence}
         disabled={loading}
-        className={isAvailable ? 'btn-ghost' : 'btn-primary'}
+        className={isAvailable ? undefined : 'btn-primary'}
         style={{
           padding: '0.65rem 1.4rem',
           fontSize: '0.9rem',
           fontWeight: 600,
-          borderColor: isAvailable ? 'rgba(239, 68, 68, 0.3)' : undefined,
-          color: isAvailable ? '#f87171' : undefined,
+          borderRadius: '0.5rem',
           cursor: loading ? 'wait' : 'pointer',
+          transition: 'all 0.2s ease',
+          opacity: loading ? 0.75 : 1,
+          ...(isAvailable
+            ? {
+                background: '#fef2f2',
+                border: '1px solid #fca5a5',
+                color: '#dc2626',
+              }
+            : {}),
         }}
       >
         {loading
@@ -150,7 +202,6 @@ export default function TherapistPresenceBar() {
           : isAvailable
           ? 'Go Offline'
           : 'Go Available Now'}
-
       </button>
     </div>
   );
