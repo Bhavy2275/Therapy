@@ -11,22 +11,31 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function POST(req: Request) {
   try {
-    // Verify the caller is an authenticated admin
+    // Verify caller authentication via session cookie
     const serverClient = await createClient();
-    const { data: { user } } = await serverClient.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await serverClient.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized. Please log in.' }, { status: 401 });
     }
 
-    const { data: userRow } = await serverClient
+    const adminClient = createAdminClient();
+
+    // Verify role using adminClient to ensure RLS doesn't block the check
+    const { data: userRow, error: roleError } = await adminClient
       .from('users')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    if (userRow?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden: admin only' }, { status: 403 });
+    if (roleError || userRow?.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Forbidden: Admin access required.' },
+        { status: 403 },
+      );
     }
 
     // Parse body
@@ -46,9 +55,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid status value' }, { status: 400 });
     }
 
-    // Use the admin client (service role) to bypass RLS
-    const adminClient = createAdminClient();
-    const { error } = await adminClient
+    // Update therapist profile with service role
+    const { error: updateError } = await adminClient
       .from('therapist_profiles')
       .update({
         status,
@@ -57,14 +65,16 @@ export async function POST(req: Request) {
       })
       .eq('user_id', userId);
 
-    if (error) {
-      console.error('[admin/therapist-status] DB error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (updateError) {
+      console.error('[admin/therapist-status] DB error:', updateError);
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, userId, status });
-  } catch (err) {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
     console.error('[admin/therapist-status] Unexpected error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: `Server error: ${msg}` }, { status: 500 });
   }
 }
+
