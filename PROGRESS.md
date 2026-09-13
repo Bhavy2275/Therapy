@@ -225,25 +225,45 @@
 
 ---
 
-## Phase 4 — Live Calling & Chat ⏳ IN PROGRESS
+## Phase 4 — Live Calling & Chat ✅ COMPLETE
 
-**Goal:** WebRTC / LiveKit live voice, video, and real-time chat session room (`/dashboard/session/[id]`).
+**Completed:** 2026-09-14
+
+### What was built
+
+#### WebRTC Audio/Video & Signaling Room (`apps/web/src/app/dashboard/session/[id]/page.tsx`)
+- **WebRTC Peer Connection**: Real peer-to-peer audio and video streaming using STUN server configuration (`stun.l.google.com`).
+- **Supabase Realtime Signaling**: Channel-based signaling (`therapy-session-[id]`) for exchanging WebRTC offers, answers, and ICE candidates without external LiveKit server dependency.
+- **Microphone & Camera Controls**: Interactive mute/unmute and camera off/on toggling active `MediaStreamTrack` states.
+- **Audio Reliability**: Background `<audio autoPlay playsInline>` element ensuring uninterrupted voice calls in audio-only and video modes.
+- **Real-time In-Session Chat**: Live messaging panel with broadcast sync via Supabase Realtime, available in full chat mode and side-panel mode during calls.
+- **Session Management**:
+  - Live session timer with 45-minute cap and 5-minute countdown alert banner.
+  - "End Session" modal syncing completion across both participants in real-time.
+  - Therapist clinical notes modal (saved privately to session).
+  - Client post-session feedback screen with voluntary UPI donation and follow-up booking CTA.
+- **Sessions Dashboard**: "End Session" action button placed directly next to "Enter Live Room" on `/dashboard/sessions`.
 
 ---
 
-## Phase 5 — Scheduling
+## Phase 5 — Scheduling & Follow-up Bookings ✅ COMPLETE
 
-**Status:** ⏳ Not started
-
----
-
-## Phase 6 — Donations
-
-**Status:** ⏳ Not started
+- Therapist weekly availability slots configuration.
+- Client calendar booking interface at `/dashboard/schedule`.
+- Integrated cancellation and booking management on `/dashboard/sessions`.
 
 ---
 
-## Phase 7 — Polish & Launch Readiness
+## Phase 6 — Voluntary UPI Donations & Admin Controls ✅ COMPLETE
 
-**Status:** ⏳ Not started
+- Platform UPI donation page at `/donate` with QR code, copyable UPI ID, and voluntary amount selection.
+- Dynamic platform settings API (`/api/admin/platform-settings`) allowing admins to update the UPI ID directly from the admin panel without redeploying code.
+- Migration `002_platform_settings.sql` supporting persistent platform configuration in Supabase.
+
+---
+
+## Phase 7 — Polish & Launch Readiness ⏳ READY FOR TESTING
+
+- TypeScript & Turbopack production builds passing across `apps/web`.
+
 

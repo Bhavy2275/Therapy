@@ -73,7 +73,40 @@ export default function NewInstantSessionPage() {
     };
   }, []);
 
-  async function startMatching() {
+  const [isSos, setIsSos] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('mode') === 'sos') {
+        setIsSos(true);
+        setTopic('Emergency Crisis SOS');
+      }
+    }
+  }, []);
+
+  // Auto-navigate to session room 2 seconds after match is confirmed
+  useEffect(() => {
+    if (step === 'matched' && matchedTherapist?.sessionId) {
+      const timer = setTimeout(() => {
+        router.push(`/dashboard/session/${matchedTherapist.sessionId}`);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [step, matchedTherapist, router]);
+
+  // If search times out at 90s, redirect to scheduled appointment booking
+  useEffect(() => {
+    if (step === 'timed_out') {
+      const timer = setTimeout(() => {
+        router.push('/dashboard/schedule');
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [step, router]);
+
+  async function startMatching(forceSos?: boolean | unknown) {
+    const sosMode = typeof forceSos === 'boolean' ? forceSos : isSos;
     setStep('searching');
     setErrorMsg(null);
     setSearchSeconds(0);
@@ -81,7 +114,7 @@ export default function NewInstantSessionPage() {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setSearchSeconds((prev) => {
-        if (prev >= 59) {
+        if (prev >= 89) {
           if (timerRef.current) clearInterval(timerRef.current);
           setStep('timed_out');
           if (channelRef.current && currentSessionIdRef.current) {
@@ -91,7 +124,7 @@ export default function NewInstantSessionPage() {
               payload: { sessionId: currentSessionIdRef.current },
             });
           }
-          return 60;
+          return 90;
         }
         return prev + 1;
       });
@@ -105,7 +138,8 @@ export default function NewInstantSessionPage() {
         body: JSON.stringify({
           type: sessionType,
           languagePreference: language,
-          topic: topic.trim() || undefined,
+          topic: topic.trim() || (sosMode ? 'Emergency Crisis SOS' : undefined),
+          isSos: sosMode,
         }),
       });
       const data = await res.json();
@@ -512,7 +546,7 @@ export default function NewInstantSessionPage() {
               fontWeight: 500,
             }}>
               <span className="spinner" style={{ width: 14, height: 14, borderColor: '#bfdbfe', borderTopColor: '#2563eb' }} />
-              <span>Time elapsed: <strong style={{ color: '#1e40af' }}>00:{String(searchSeconds).padStart(2, '0')}</strong> / 60s</span>
+              <span>Time elapsed: <strong style={{ color: '#1e40af' }}>00:{String(searchSeconds).padStart(2, '0')}</strong> / 90s</span>
             </div>
 
             {/* Calming Prompt */}
@@ -664,11 +698,21 @@ export default function NewInstantSessionPage() {
             <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
               <button
                 type="button"
-                onClick={() => router.push(`/dashboard/sessions`)}
+                onClick={() => router.push(`/dashboard/session/${matchedTherapist.sessionId}`)}
                 className="btn-primary"
-                style={{ padding: '0.85rem 2.75rem', fontSize: '1rem', fontWeight: 600 }}
+                style={{
+                  padding: '0.85rem 2.75rem',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  background: '#059669',
+                  boxShadow: '0 4px 15px rgba(5, 150, 105, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
               >
-                Enter Session Room →
+                <span>Entering Session Room in 2s...</span>
+                <span>→</span>
               </button>
             </div>
           </div>
@@ -688,16 +732,20 @@ export default function NewInstantSessionPage() {
               <IconClock size={40} color="#3b82f6" />
             </div>
             <h2 style={{ fontSize: '1.65rem', fontWeight: 700, marginBottom: '0.5rem', color: '#1e293b' }}>
-              All therapists are busy right now
+              All therapists are currently in session
             </h2>
-            <p style={{ color: '#64748b', fontSize: '0.95rem', maxWidth: 460, margin: '0 auto 2rem', lineHeight: 1.6 }}>
-              None of our available therapists were able to accept within 60 seconds. You can try requesting again or book a scheduled session for later.
+            <p style={{ color: '#64748b', fontSize: '0.95rem', maxWidth: 480, margin: '0 auto 1.5rem', lineHeight: 1.6 }}>
+              None of our available therapists were able to accept within 90 seconds. Redirecting you to book a scheduled appointment...
             </p>
 
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
+              <span className="spinner" style={{ width: 16, height: 16, borderColor: '#bfdbfe', borderTopColor: '#2563eb' }} />
+              <span style={{ color: '#2563eb', fontWeight: 600, fontSize: '0.9rem' }}>Redirecting to appointment booking...</span>
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={startMatching}
+              <Link
+                href="/dashboard/schedule"
                 className="btn-primary"
                 style={{
                   padding: '0.75rem 2rem',
@@ -707,12 +755,17 @@ export default function NewInstantSessionPage() {
                   gap: '0.5rem',
                 }}
               >
-                <IconBolt size={16} />
-                <span>Try Matching Again</span>
-              </button>
-              <Link href="/dashboard" className="btn-ghost" style={{ padding: '0.75rem 1.75rem', fontSize: '0.95rem' }}>
-                Return to Dashboard
+                <span>Schedule an Appointment Now</span>
+                <span>→</span>
               </Link>
+              <button
+                type="button"
+                onClick={() => startMatching()}
+                className="btn-ghost"
+                style={{ padding: '0.75rem 1.75rem', fontSize: '0.95rem' }}
+              >
+                Try Instant Again
+              </button>
             </div>
           </div>
         )}

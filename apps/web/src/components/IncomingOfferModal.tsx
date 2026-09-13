@@ -8,9 +8,11 @@ import type { TherapistOfferPayload, SessionMatchedPayload } from '@therapy/shar
 import { IconVideo, IconMic, IconMessageSquare, IconBolt } from '@/components/Icons';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
+type TherapistOffer = TherapistOfferPayload & { isSos?: boolean };
+
 export default function IncomingOfferModal() {
   const router = useRouter();
-  const [offer, setOffer] = useState<TherapistOfferPayload | null>(null);
+  const [offer, setOffer] = useState<TherapistOffer | null>(null);
   const [timeLeft, setTimeLeft] = useState(30);
   const [isAccepting, setIsAccepting] = useState(false);
   const [outcome, setOutcome] = useState<{ status: 'won' | 'lost'; message: string } | null>(null);
@@ -58,29 +60,41 @@ export default function IncomingOfferModal() {
     setOutcome(null);
   }, []);
 
-  const triggerChime = useCallback(() => {
+  const triggerChime = useCallback((isSos?: boolean) => {
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         const ctx = new AudioCtx();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.4);
+        osc.type = isSos ? 'sawtooth' : 'sine';
+        if (isSos) {
+          osc.frequency.setValueAtTime(880, ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(660, ctx.currentTime + 0.2);
+          osc.frequency.linearRampToValueAtTime(880, ctx.currentTime + 0.4);
+          gain.gain.setValueAtTime(0.35, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.6);
+        } else {
+          osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+          gain.gain.setValueAtTime(0.2, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.4);
+        }
       }
     } catch {
       // Audio autoplay policy fallback
     }
   }, []);
 
-  const onOfferReceived = useCallback((newOffer: TherapistOfferPayload) => {
+  const onOfferReceived = useCallback((newOffer: TherapistOffer) => {
     if (!newOffer || !newOffer.sessionId) return;
     // Don't show offers that the therapist already passed or that timed out
     if (passedOfferIdsRef.current.has(newOffer.sessionId)) {
@@ -89,7 +103,7 @@ export default function IncomingOfferModal() {
     setOffer(newOffer);
     setOutcome(null);
     setIsAccepting(false);
-    triggerChime();
+    triggerChime(newOffer.isSos);
 
     const expires = new Date(newOffer.expiresAt).getTime();
     const now = Date.now();
@@ -121,7 +135,7 @@ export default function IncomingOfferModal() {
     channel
       .on('broadcast', { event: 'session:offer' }, (res: { payload: unknown }) => {
         if (!mounted) return;
-        const newOffer = res.payload as TherapistOfferPayload;
+        const newOffer = res.payload as TherapistOffer;
         if (newOffer?.sessionId && passedOfferIdsRef.current.has(newOffer.sessionId)) return;
         onOfferReceived(newOffer);
       })
@@ -275,11 +289,11 @@ export default function IncomingOfferModal() {
 
         setOutcome({
           status: 'won',
-          message: 'Session accepted! Entering session room...',
+          message: 'Match Confirmed! Entering session room...',
         });
         setTimeout(() => {
           router.push(`/dashboard/session/${offer.sessionId}`);
-        }, 1500);
+        }, 2000);
       } else {
         setOutcome({
           status: 'lost',
@@ -310,6 +324,11 @@ export default function IncomingOfferModal() {
 
   if (!offer) return null;
 
+  const isSos = Boolean(offer.isSos);
+  const themeColor = isSos ? '#dc2626' : '#2563eb';
+  const pulseColor = isSos ? 'rgba(220, 38, 38, 0.6)' : 'rgba(59, 130, 246, 0.6)';
+  const shadowColor = isSos ? '0 0 30px rgba(220, 38, 38, 0.45)' : '0 0 25px rgba(37, 99, 235, 0.4)';
+
   const modalityIcon =
     offer.type === 'video' ? (
       <IconVideo size={36} color="#FFFFFF" />
@@ -325,7 +344,7 @@ export default function IncomingOfferModal() {
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
-        background: 'rgba(15, 23, 42, 0.75)',
+        background: isSos ? 'rgba(69, 10, 10, 0.85)' : 'rgba(15, 23, 42, 0.75)',
         backdropFilter: 'blur(12px)',
         display: 'flex',
         alignItems: 'center',
@@ -341,8 +360,8 @@ export default function IncomingOfferModal() {
           borderRadius: '1.5rem',
           padding: '2.25rem 2rem',
           background: '#ffffff',
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.25)',
+          border: isSos ? '2px solid #ef4444' : '1px solid #e2e8f0',
+          boxShadow: isSos ? '0 25px 60px rgba(220, 38, 38, 0.35)' : '0 25px 60px rgba(0, 0, 0, 0.25)',
           textAlign: 'center',
           position: 'relative',
         }}
@@ -355,12 +374,12 @@ export default function IncomingOfferModal() {
               width: 72,
               height: 72,
               borderRadius: '50%',
-              background: '#2563eb',
+              background: themeColor,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '2rem',
-              boxShadow: '0 0 25px rgba(37, 99, 235, 0.4)',
+              boxShadow: shadowColor,
             }}
           >
             {modalityIcon}
@@ -369,25 +388,54 @@ export default function IncomingOfferModal() {
                 position: 'absolute',
                 inset: -6,
                 borderRadius: '50%',
-                border: '2px solid rgba(59, 130, 246, 0.6)',
-                animation: 'radarPulse 1.5s infinite',
+                border: `2px solid ${pulseColor}`,
+                animation: 'radarPulse 1.2s infinite',
               }}
             />
           </div>
         </div>
 
-        <h3 style={{ fontSize: '1.45rem', fontWeight: 700, marginBottom: '0.35rem', color: '#0f172a' }}>
-          Incoming Instant Session Offer!
+        {isSos && (
+          <div
+            style={{
+              display: 'inline-block',
+              padding: '0.25rem 0.75rem',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '9999px',
+              color: '#b91c1c',
+              fontWeight: 700,
+              fontSize: '0.75rem',
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              marginBottom: '0.75rem',
+            }}
+          >
+            Emergency SOS Crisis
+          </div>
+        )}
+
+        <h3
+          style={{
+            fontSize: '1.45rem',
+            fontWeight: 700,
+            marginBottom: '0.35rem',
+            color: isSos ? '#b91c1c' : '#0f172a',
+          }}
+        >
+          {isSos ? '🚨 Emergency Crisis SOS Alert!' : 'Incoming Instant Session Offer!'}
         </h3>
         <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-          First verified therapist to accept secures the session.
+          {isSos
+            ? 'A client in crisis needs immediate support. First to accept connects.'
+            : 'First verified therapist to accept secures the session.'}
         </p>
 
         {/* Client & Session Details Card */}
         <div
           style={{
-            background: '#f8fafc',
-            border: '1px solid #e2e8f0',
+            background: isSos ? '#fff1f2' : '#f8fafc',
+            border: isSos ? '1px solid #fecaca' : '1px solid #e2e8f0',
             borderRadius: '1rem',
             padding: '1.25rem',
             marginBottom: '1.5rem',
@@ -402,7 +450,7 @@ export default function IncomingOfferModal() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
             <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Modality</span>
-            <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#2563eb', textTransform: 'capitalize' }}>
+            <span style={{ fontWeight: 600, fontSize: '0.9rem', color: isSos ? '#b91c1c' : '#2563eb', textTransform: 'capitalize' }}>
               {offer.type} Session
             </span>
           </div>
@@ -415,7 +463,7 @@ export default function IncomingOfferModal() {
             </div>
           )}
           {offer.topic && (
-            <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #e2e8f0' }}>
+            <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: isSos ? '1px solid #fecaca' : '1px solid #e2e8f0' }}>
               <span style={{ color: '#64748b', fontSize: '0.8rem', display: 'block', marginBottom: '0.2rem' }}>
                 Primary Concern / Focus:
               </span>
@@ -430,7 +478,7 @@ export default function IncomingOfferModal() {
         <div style={{ marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#64748b', marginBottom: '0.35rem' }}>
             <span>Time to respond</span>
-            <span style={{ color: timeLeft <= 10 ? '#ef4444' : '#2563eb', fontWeight: 700 }}>
+            <span style={{ color: timeLeft <= 10 ? '#ef4444' : isSos ? '#dc2626' : '#2563eb', fontWeight: 700 }}>
               {timeLeft}s
             </span>
           </div>
@@ -447,7 +495,7 @@ export default function IncomingOfferModal() {
               style={{
                 height: '100%',
                 width: `${(timeLeft / 30) * 100}%`,
-                background: timeLeft <= 10 ? '#ef4444' : '#2563eb',
+                background: timeLeft <= 10 ? '#ef4444' : isSos ? '#dc2626' : '#2563eb',
                 transition: 'width 1s linear',
               }}
             />
@@ -458,17 +506,17 @@ export default function IncomingOfferModal() {
         {outcome && (
           <div
             style={{
-              padding: '0.85rem',
+              padding: '1rem',
               borderRadius: '0.75rem',
               marginBottom: '1rem',
-              fontSize: '0.875rem',
-              fontWeight: 600,
+              fontSize: '0.95rem',
+              fontWeight: 700,
               background: outcome.status === 'won' ? '#ecfdf5' : '#fef2f2',
               color: outcome.status === 'won' ? '#047857' : '#b91c1c',
               border: outcome.status === 'won' ? '1px solid #a7f3d0' : '1px solid #fecaca',
             }}
           >
-            {outcome.message}
+            {outcome.status === 'won' ? '🎉 ' : ''}{outcome.message}
           </div>
         )}
 
@@ -485,8 +533,8 @@ export default function IncomingOfferModal() {
                 padding: '0.85rem 1rem',
                 fontSize: '1rem',
                 fontWeight: 700,
-                background: '#059669',
-                boxShadow: '0 4px 15px rgba(5, 150, 105, 0.3)',
+                background: isSos ? '#dc2626' : '#059669',
+                boxShadow: isSos ? '0 4px 15px rgba(220, 38, 38, 0.35)' : '0 4px 15px rgba(5, 150, 105, 0.3)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -494,7 +542,7 @@ export default function IncomingOfferModal() {
               }}
             >
               <IconBolt size={18} color="#FFFFFF" />
-              {isAccepting ? 'Claiming...' : 'Accept Session'}
+              {isAccepting ? 'Securing Session...' : isSos ? 'Accept Emergency SOS' : 'Accept Session'}
             </button>
 
             <button

@@ -15,27 +15,29 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { type, languagePreference, topic } = body as {
+    const { type, languagePreference, topic, isSos } = body as {
       type: 'video' | 'voice' | 'chat';
       languagePreference?: string;
       topic?: string;
+      isSos?: boolean;
     };
 
-    if (!type || !['video', 'voice', 'chat'].includes(type)) {
-      return NextResponse.json({ error: 'Valid session type required' }, { status: 400 });
-    }
+    const sessionType = type && ['video', 'voice', 'chat'].includes(type) ? type : 'video';
 
     const adminClient = createAdminClient();
 
-    // Create session record in pending status
+    const finalTopic = isSos ? (topic || 'EMERGENCY_CRISIS_SOS') : (topic ? topic.trim() : null);
+
+    // Create session record in pending status (free, 100% no billing)
     const { data: session, error: insertError } = await adminClient
       .from('sessions')
       .insert({
         client_id: user.id,
-        type,
+        type: sessionType,
         mode: 'instant',
         status: 'pending',
-        notes: topic ? topic.trim() : null,
+        billing_enabled: false,
+        notes: finalTopic,
       })
       .select('id, client_id, type, mode, status, created_at')
       .single();
@@ -48,16 +50,18 @@ export async function POST(req: Request) {
       );
     }
 
-    const expiresAt = new Date(Date.now() + 60000).toISOString();
+    // 90 seconds search window
+    const expiresAt = new Date(Date.now() + 90000).toISOString();
     const clientName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Client';
 
     const offerPayload = {
       sessionId: session.id,
       clientId: user.id,
       clientName,
-      type,
+      type: sessionType,
       languagePreference: languagePreference || 'English',
-      topic: topic ? topic.trim() : undefined,
+      topic: finalTopic ?? undefined,
+      isSos: Boolean(isSos),
       expiresAt,
     };
 

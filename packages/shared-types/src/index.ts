@@ -113,6 +113,7 @@ export interface TherapistOfferPayload {
   type: SessionType;
   languagePreference?: string;
   topic?: string;
+  isSos?: boolean;
   expiresAt: string;       // ISO 8601 — 30s deadline
 }
 

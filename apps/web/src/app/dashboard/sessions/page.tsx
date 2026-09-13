@@ -52,6 +52,7 @@ export default function SessionsPage() {
   const [userRole, setUserRole] = useState<'client' | 'therapist' | 'admin'>('client');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [endingId, setEndingId] = useState<string | null>(null);
   const [cancelMessage, setCancelMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const loadSessions = useCallback(async () => {
@@ -139,6 +140,34 @@ export default function SessionsPage() {
       setCancelMessage({ type: 'error', text: err?.message || 'Error cancelling booking' });
     } finally {
       setCancellingId(null);
+    }
+  };
+
+  const handleEndSession = async (sessionId: string) => {
+    if (!confirm('End this live session? Both you and the other participant will be disconnected.')) return;
+
+    setEndingId(sessionId);
+    try {
+      const supabase = createClient();
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      const token = authSession?.access_token;
+
+      const res = await fetch(`/api/sessions/${sessionId}/end`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token || ''}` },
+      });
+
+      if (!res.ok) throw new Error('Failed to end session');
+
+      setCancelMessage({ type: 'success', text: 'Session ended successfully.' });
+      setSessions((prev) =>
+        prev.map((s) => (s.id === sessionId ? { ...s, status: 'completed' as SessionStatus } : s))
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error ending session';
+      setCancelMessage({ type: 'error', text: msg });
+    } finally {
+      setEndingId(null);
     }
   };
 
@@ -600,24 +629,37 @@ export default function SessionsPage() {
                       )}
 
                       {isLive && (
-                        <Link
-                          href={`/dashboard/session/${session.id}`}
-                          style={{
-                            padding: '0.45rem 1.25rem',
-                            fontSize: '0.85rem',
-                            fontWeight: 600,
-                            background: '#10b981',
-                            color: '#ffffff',
-                            borderRadius: '0.5rem',
-                            textDecoration: 'none',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                          }}
-                        >
-                          <span>Enter Live Room</span>
-                          <span>→</span>
-                        </Link>
+                        <>
+                          <button
+                            type="button"
+                            disabled={endingId === session.id}
+                            onClick={() => handleEndSession(session.id)}
+                            style={{
+                              padding: '0.45rem 0.9rem',
+                              fontSize: '0.825rem',
+                              fontWeight: 600,
+                              borderRadius: '0.5rem',
+                              border: '1px solid #fecaca',
+                              background: '#fef2f2',
+                              color: '#dc2626',
+                              cursor: endingId === session.id ? 'not-allowed' : 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              opacity: endingId === session.id ? 0.6 : 1,
+                            }}
+                          >
+                            <IconX size={14} color="#dc2626" />
+                            <span>{endingId === session.id ? 'Ending...' : 'End Session'}</span>
+                          </button>
+                          <Link
+                            href={`/dashboard/session/${session.id}`}
+                            style={{ padding: '0.45rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, background: '#10b981', color: '#ffffff', borderRadius: '0.5rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                          >
+                            <span>Enter Live Room</span>
+                            <span>→</span>
+                          </Link>
+                        </>
                       )}
 
                       {!isLive && session.status === 'completed' && (

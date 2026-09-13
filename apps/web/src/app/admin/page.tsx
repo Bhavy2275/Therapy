@@ -12,6 +12,7 @@ import {
   IconSearch,
   IconFile,
   IconX,
+  IconQrCode,
 } from '@/components/Icons';
 
 type TherapistStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
@@ -104,6 +105,13 @@ const DEMO_THERAPISTS: TherapistItem[] = [
   },
 ];
 
+interface PlatformSettings {
+  upi_id: string;
+  upi_name: string;
+  upi_qr_url: string;
+  donation_note: string;
+}
+
 export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [therapists, setTherapists] = useState<TherapistItem[]>([]);
@@ -115,9 +123,62 @@ export default function AdminPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
+  // UPI Settings state
+  const [upiSettings, setUpiSettings] = useState<PlatformSettings>({
+    upi_id: '',
+    upi_name: '',
+    upi_qr_url: '',
+    donation_note: '',
+  });
+  const [upiLoading, setUpiLoading] = useState(true);
+  const [upiSaving, setUpiSaving] = useState(false);
+
   useEffect(() => {
     loadTherapists();
+    loadUpiSettings();
   }, []);
+
+  async function loadUpiSettings() {
+    try {
+      const res = await fetch('/api/admin/platform-settings');
+      if (res.ok) {
+        const data = await res.json();
+        setUpiSettings({
+          upi_id: data.upi_id || '',
+          upi_name: data.upi_name || '',
+          upi_qr_url: data.upi_qr_url || '',
+          donation_note: data.donation_note || '',
+        });
+      }
+    } catch {
+      // use defaults
+    } finally {
+      setUpiLoading(false);
+    }
+  }
+
+  async function saveUpiSettings() {
+    setUpiSaving(true);
+    try {
+      const res = await fetch('/api/admin/platform-settings/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: upiSettings }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Failed to save');
+      }
+      setToast({ text: 'UPI settings saved successfully!', type: 'success' });
+      setTimeout(() => setToast(null), 3500);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Save failed';
+      setToast({ text: msg, type: 'error' });
+      setTimeout(() => setToast(null), 4000);
+    } finally {
+      setUpiSaving(false);
+    }
+  }
 
   async function loadTherapists() {
     setLoading(true);
@@ -346,9 +407,132 @@ export default function AdminPage() {
         {/* Header */}
         <div style={{ marginBottom: '2rem' }}>
           <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.4rem', color: '#1e293b' }}>
-            Therapist <span style={{ color: '#3b82f6' }}>Verification Queue</span>
+            Admin <span style={{ color: '#3b82f6' }}>Control Centre</span>
           </h1>
           <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
+            Manage therapist verification, platform donation settings, and real-time configuration.
+          </p>
+        </div>
+
+        {/* UPI / Donation Settings Panel */}
+        <div style={{
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '1rem',
+          padding: '1.75rem 2rem',
+          marginBottom: '2.5rem',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <IconQrCode size={22} color="#7c3aed" />
+            <div>
+              <h2 style={{ fontWeight: 700, fontSize: '1.1rem', color: '#1e293b', margin: 0 }}>Donation UPI Settings</h2>
+              <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b', marginTop: '0.1rem' }}>Changes here instantly update the /donate page for all users.</p>
+            </div>
+          </div>
+
+          {upiLoading ? (
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>
+              <div className="spinner" style={{ width: 20, height: 20 }} />
+              Loading settings...
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
+                  UPI ID <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  value={upiSettings.upi_id}
+                  onChange={(e) => setUpiSettings((s) => ({ ...s, upi_id: e.target.value }))}
+                  placeholder="yourname@upi"
+                  style={{ fontFamily: 'monospace', fontSize: '0.95rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
+                  UPI Account Name
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  value={upiSettings.upi_name}
+                  onChange={(e) => setUpiSettings((s) => ({ ...s, upi_name: e.target.value }))}
+                  placeholder="Foundation or personal name shown on UPI"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
+                  QR Code Image URL
+                </label>
+                <input
+                  type="url"
+                  className="input"
+                  value={upiSettings.upi_qr_url}
+                  onChange={(e) => setUpiSettings((s) => ({ ...s, upi_qr_url: e.target.value }))}
+                  placeholder="https://... (paste a public image link)"
+                />
+                <p style={{ margin: '0.3rem 0 0', fontSize: '0.76rem', color: '#94a3b8' }}>
+                  Upload your QR to Supabase Storage or any CDN and paste the public URL here.
+                </p>
+              </div>
+
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
+                  Donation Page Message
+                </label>
+                <textarea
+                  className="input"
+                  rows={2}
+                  value={upiSettings.donation_note}
+                  onChange={(e) => setUpiSettings((s) => ({ ...s, donation_note: e.target.value }))}
+                  placeholder="Short message displayed on the /donate page..."
+                />
+              </div>
+
+              <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={saveUpiSettings}
+                  disabled={upiSaving}
+                  className="btn-primary"
+                  style={{ padding: '0.65rem 1.75rem', fontWeight: 600 }}
+                >
+                  {upiSaving ? 'Saving...' : '💾 Save UPI Settings'}
+                </button>
+                {upiSettings.upi_qr_url && (
+                  <a
+                    href={upiSettings.upi_qr_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: '#7c3aed', fontSize: '0.85rem', fontWeight: 500 }}
+                  >
+                    Preview QR ↗
+                  </a>
+                )}
+                <a
+                  href="/donate"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: '#2563eb', fontSize: '0.85rem', fontWeight: 500 }}
+                >
+                  Preview Donate Page ↗
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Therapist Verification Header */}
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.3rem', color: '#1e293b' }}>
+            Therapist <span style={{ color: '#3b82f6' }}>Verification Queue</span>
+          </h2>
+          <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
             Review submitted credentials, verify active professional clinical licenses, and manage therapist admission.
           </p>
         </div>

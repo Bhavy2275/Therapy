@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import TherapistPresenceBar from '@/components/TherapistPresenceBar';
 import IncomingOfferModal from '@/components/IncomingOfferModal';
+import ClientSosButton from '@/components/ClientSosButton';
 import {
   IconBolt,
   IconCalendar,
@@ -310,6 +311,7 @@ function ClientDashboard({
 }) {
   return (
     <div>
+      <ClientSosButton />
       {nextSession && <NextSessionWidget session={nextSession} />}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
         <DashCard
@@ -394,7 +396,7 @@ function TherapistDashboard({
         {status === 'rejected' && (
           <div style={{
             background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.25)',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
             borderRadius: '0.85rem',
             padding: '1.25rem 1.5rem',
             display: 'flex',
@@ -406,15 +408,12 @@ function TherapistDashboard({
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
               <IconAlertCircle size={28} color="#dc2626" />
               <div>
-                <div style={{ fontWeight: 600, color: '#dc2626' }}>Action Required: Update Verification Info</div>
-                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                  {note || 'Additional information or a clearer license document is required to approve your account.'}
+                <div style={{ fontWeight: 700, color: '#dc2626', fontSize: '1.05rem' }}>Rejected</div>
+                <div style={{ fontSize: '0.9rem', color: '#7f1d1d', fontWeight: 500 }}>
+                  Your account will be deleted.
                 </div>
               </div>
             </div>
-            <Link href="/dashboard/therapist/profile" className="btn-primary" style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }}>
-              Update Profile
-            </Link>
           </div>
         )}
 
