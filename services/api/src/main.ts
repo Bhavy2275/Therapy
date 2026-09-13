@@ -51,10 +51,22 @@ async function bootstrap() {
 
   // ── 4. Strict CORS ────────────────────────────────────────────────────────
   app.enableCors({
-    origin: [
-      'http://localhost:3000',  // Next.js web
-      process.env.WEB_URL ?? '',
-    ].filter(Boolean),
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+
+      if (
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1') ||
+        origin.endsWith('.vercel.app') ||
+        (process.env.WEB_URL && origin === process.env.WEB_URL)
+      ) {
+        return callback(null, true);
+      }
+
+      // Allow in staging / preview
+      return callback(null, true);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

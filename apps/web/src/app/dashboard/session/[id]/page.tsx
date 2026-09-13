@@ -92,7 +92,7 @@ export default function LiveSessionRoomPage() {
       }
 
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/sessions/${sessionId}/livekit-token`,
+        `/api/sessions/${sessionId}/livekit-token`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
