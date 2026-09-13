@@ -10,7 +10,7 @@ services:
     ports:
       - '5432:5432'
     environment:
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: therapy_platform
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -49,7 +49,7 @@ services:
     environment:
       - API_PORT=3001
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/therapy_platform
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/therapy_platform
       - UPSTASH_REDIS_REST_URL=redis://redis:6379
       - JWT_SECRET=local-dev-secret-change-in-prod
     depends_on:
