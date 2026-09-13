@@ -35,8 +35,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Only therapists can check pending offers' }, { status: 403 });
     }
 
-    // Query pending instant sessions created in the last 65 seconds
-    const cutoff = new Date(Date.now() - 65000).toISOString();
+    // Only approved and ONLINE therapists receive offers
+    const { data: therapistProfile } = await adminClient
+      .from('therapist_profiles')
+      .select('status, is_available_now')
+      .eq('user_id', user.id)
+      .single();
+
+    if (therapistProfile?.status !== 'approved' || !therapistProfile?.is_available_now) {
+      return NextResponse.json({ hasOffer: false }, { status: 200 });
+    }
+
+    // Query pending instant sessions created in the last 95 seconds
+    const cutoff = new Date(Date.now() - 95000).toISOString();
     let query = adminClient
       .from('sessions')
       .select(`
@@ -81,12 +92,14 @@ export async function GET(request: Request) {
     const userObj = Array.isArray(session.users) ? session.users[0] : session.users;
     const clientName = (userObj as { full_name?: string })?.full_name || 'Client';
     const createdAtMs = new Date(session.created_at).getTime();
-    const expiresAt = new Date(createdAtMs + 60000).toISOString();
+    const expiresAt = new Date(createdAtMs + 90000).toISOString();
 
-    // Check if expired
-    if (Date.now() > createdAtMs + 60000) {
+    // Check if 90s search window expired
+    if (Date.now() > createdAtMs + 90000) {
       return NextResponse.json({ hasOffer: false }, { status: 200 });
     }
+
+    const isSos = session.notes === 'EMERGENCY_CRISIS_SOS' || Boolean(session.notes?.includes('SOS'));
 
     return NextResponse.json({
       hasOffer: true,
@@ -95,7 +108,8 @@ export async function GET(request: Request) {
         clientId: session.client_id,
         clientName,
         type: session.type,
-        topic: session.notes ?? undefined,
+        topic: isSos ? 'Emergency Crisis SOS Request' : (session.notes ?? undefined),
+        isSos,
         expiresAt,
       },
     });
