@@ -114,7 +114,33 @@ export default function IncomingOfferModal() {
       })
       .subscribe();
 
-    // 2. Best-effort Socket.io connection (for local development or backend clusters)
+    // 2. Continuous DB Polling (every 2s) to guarantee zero missed offers even if WebSocket reconnects
+    async function checkPendingOffer() {
+      if (!mounted) return;
+      try {
+        const res = await fetch('/api/matching/pending');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!mounted) return;
+
+        if (data.hasOffer && data.offer) {
+          setOffer((curr) => {
+            if (!curr || curr.sessionId !== data.offer.sessionId) {
+              onOfferReceived(data.offer);
+              return data.offer;
+            }
+            return curr;
+          });
+        }
+      } catch {
+        // Ignore network glitches
+      }
+    }
+
+    checkPendingOffer();
+    const pollInterval = setInterval(checkPendingOffer, 2000);
+
+    // 3. Best-effort Socket.io connection (for local development or backend clusters)
     getMatchingSocket()
       .then((socket) => {
         if (!mounted) return;
@@ -147,12 +173,13 @@ export default function IncomingOfferModal() {
         });
       })
       .catch(() => {
-        // Socket offline fallback handled by Supabase Realtime
+        // Socket offline fallback handled by Supabase Realtime & Polling
       });
 
     return () => {
       mounted = false;
       if (timerRef.current) clearInterval(timerRef.current);
+      clearInterval(pollInterval);
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
       }

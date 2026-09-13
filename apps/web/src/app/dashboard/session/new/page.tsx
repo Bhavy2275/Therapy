@@ -57,12 +57,14 @@ export default function NewInstantSessionPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const statusPollRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const currentSessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (statusPollRef.current) clearInterval(statusPollRef.current);
       if (channelRef.current) {
         const supabase = createClient();
         supabase.removeChannel(channelRef.current);
@@ -139,12 +141,44 @@ export default function NewInstantSessionPage() {
           }
         });
 
-      // 3. Best effort Socket.io broadcast (if socket backend is up)
+      // 3. Continuous polling & re-broadcast every 2s while waiting for acceptance
+      if (statusPollRef.current) clearInterval(statusPollRef.current);
+      statusPollRef.current = setInterval(async () => {
+        const activeId = currentSessionIdRef.current;
+        if (!activeId) return;
+
+        // Re-send broadcast offer so newly opened therapist dashboards catch it immediately
+        if (channelRef.current && data.offer) {
+          channelRef.current.send({
+            type: 'broadcast',
+            event: 'session:offer',
+            payload: data.offer,
+          });
+        }
+
+        try {
+          const statusRes = await fetch(`/api/matching/status?sessionId=${activeId}`);
+          if (statusRes.ok) {
+            const statusData = await statusRes.json();
+            if (statusData.status === 'accepted' && statusData.sessionMatched) {
+              if (statusPollRef.current) clearInterval(statusPollRef.current);
+              if (timerRef.current) clearInterval(timerRef.current);
+              setMatchedTherapist(statusData.sessionMatched);
+              setStep('matched');
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }, 2000);
+
+      // 4. Best effort Socket.io broadcast (if socket backend is up)
       try {
         const socket = await getMatchingSocket();
         if (socket && socket.connected) {
           socket.on('session:matched', (matchedData: SessionMatchedPayload) => {
             if (timerRef.current) clearInterval(timerRef.current);
+            if (statusPollRef.current) clearInterval(statusPollRef.current);
             setMatchedTherapist(matchedData);
             setStep('matched');
           });
@@ -162,11 +196,13 @@ export default function NewInstantSessionPage() {
       setErrorMsg(msg);
       setStep('config');
       if (timerRef.current) clearInterval(timerRef.current);
+      if (statusPollRef.current) clearInterval(statusPollRef.current);
     }
   }
 
   async function cancelRequest() {
     if (timerRef.current) clearInterval(timerRef.current);
+    if (statusPollRef.current) clearInterval(statusPollRef.current);
     const activeId = sessionId || currentSessionIdRef.current;
     if (activeId) {
       // 1. Tell therapists via Supabase Realtime broadcast that offer is expired/cancelled
