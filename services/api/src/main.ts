@@ -76,7 +76,7 @@ async function bootstrap() {
     logger.log('Swagger available at /api/docs');
   }
 
-  const port = process.env.API_PORT ?? 3001;
+  const port = process.env.PORT ?? process.env.API_PORT ?? 3001;
   await app.listen(port);
   logger.log(`API running on http://localhost:${port}/api/v1`);
 }
