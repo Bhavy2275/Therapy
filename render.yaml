@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: jarwis-help-me-api
+    env: node
+    plan: free
+    rootDir: services/api
+    buildCommand: npm install && npm run build
+    startCommand: node dist/main.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: API_PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: WEB_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://vxzgjbuyytcnincgyyon.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        value: sb_publishable_6KL1mmS9kxtpyUH-LHfOpQ_xP7NAj4Q
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_URL
+        value: https://vxzgjbuyytcnincgyyon.supabase.co
+      - key: SUPABASE_PUBLISHABLE_KEY
+        value: sb_publishable_6KL1mmS9kxtpyUH-LHfOpQ_xP7NAj4Q
+      - key: SUPABASE_SECRET_KEY
+        sync: false
