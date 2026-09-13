@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import { getMatchingSocket } from '@/lib/socket';
 import type { TherapistOfferPayload, SessionMatchedPayload } from '@therapy/shared-types';
 import { IconVideo, IconMic, IconMessageSquare, IconBolt } from '@/components/Icons';
-
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export default function IncomingOfferModal() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function IncomingOfferModal() {
   const [outcome, setOutcome] = useState<{ status: 'won' | 'lost'; message: string } | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const clearCurrentOffer = useCallback(() => {
     if (timerRef.current) {
@@ -27,40 +29,101 @@ export default function IncomingOfferModal() {
     setOutcome(null);
   }, []);
 
+  const triggerChime = useCallback(() => {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.4);
+      }
+    } catch {
+      // Audio autoplay policy fallback
+    }
+  }, []);
+
+  const onOfferReceived = useCallback((newOffer: TherapistOfferPayload) => {
+    if (!newOffer || !newOffer.sessionId) return;
+    setOffer(newOffer);
+    setOutcome(null);
+    setIsAccepting(false);
+    triggerChime();
+
+    const expires = new Date(newOffer.expiresAt).getTime();
+    const now = Date.now();
+    const remaining = Math.max(1, Math.round((expires - now) / 1000));
+    setTimeLeft(remaining);
+
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          setOffer(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [triggerChime]);
+
   useEffect(() => {
     let mounted = true;
+    const supabase = createClient();
 
+    // 1. Supabase Realtime Broadcast (Works serverlessly across all devices on Vercel)
+    const channel = supabase.channel('therapy:instant-matching');
+    channelRef.current = channel;
+
+    channel
+      .on('broadcast', { event: 'session:offer' }, (res: { payload: unknown }) => {
+        if (!mounted) return;
+        const newOffer = res.payload as TherapistOfferPayload;
+        onOfferReceived(newOffer);
+      })
+      .on('broadcast', { event: 'session:offer_expired' }, (res: { payload: unknown }) => {
+        if (!mounted) return;
+        const data = res.payload as { sessionId: string };
+        setOffer((current) => {
+          if (current && current.sessionId === data?.sessionId) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            return null;
+          }
+          return current;
+        });
+      })
+      .on('broadcast', { event: 'session:accepted' }, (res: { payload: unknown }) => {
+        if (!mounted) return;
+        const data = res.payload as SessionMatchedPayload;
+        setOffer((current) => {
+          if (current && current.sessionId === data?.sessionId) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            return null;
+          }
+          return current;
+        });
+      })
+      .subscribe();
+
+    // 2. Best-effort Socket.io connection (for local development or backend clusters)
     getMatchingSocket()
       .then((socket) => {
         if (!mounted) return;
 
-        // Listen for new session offer broadcast
         socket.on('session:offer', (newOffer: TherapistOfferPayload) => {
           if (!mounted) return;
-          setOffer(newOffer);
-          setOutcome(null);
-          setIsAccepting(false);
-
-          // Calculate remaining seconds
-          const expires = new Date(newOffer.expiresAt).getTime();
-          const now = Date.now();
-          const remaining = Math.max(1, Math.round((expires - now) / 1000));
-          setTimeLeft(remaining);
-
-          if (timerRef.current) clearInterval(timerRef.current);
-          timerRef.current = setInterval(() => {
-            setTimeLeft((prev) => {
-              if (prev <= 1) {
-                if (timerRef.current) clearInterval(timerRef.current);
-                setOffer(null);
-                return 0;
-              }
-              return prev - 1;
-            });
-          }, 1000);
+          onOfferReceived(newOffer);
         });
 
-        // Listen for offer expired / taken by another therapist
         socket.on('session:offer_expired', (data: { sessionId: string }) => {
           setOffer((current) => {
             if (current && current.sessionId === data.sessionId) {
@@ -71,7 +134,6 @@ export default function IncomingOfferModal() {
           });
         });
 
-        // Listen for winning confirmation
         socket.on('session:accepted', (data: SessionMatchedPayload) => {
           if (!mounted) return;
           if (timerRef.current) clearInterval(timerRef.current);
@@ -80,51 +142,74 @@ export default function IncomingOfferModal() {
             message: `Session confirmed with ${data.therapistName || 'Client'}!`,
           });
           setTimeout(() => {
-            router.push('/dashboard/sessions');
-          }, 2000);
+            router.push(`/dashboard/session/${data.sessionId}`);
+          }, 1800);
         });
       })
-      .catch((err) => {
-        console.warn('Socket connection error in IncomingOfferModal:', err);
+      .catch(() => {
+        // Socket offline fallback handled by Supabase Realtime
       });
 
     return () => {
       mounted = false;
       if (timerRef.current) clearInterval(timerRef.current);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
     };
-  }, [router]);
+  }, [router, onOfferReceived]);
 
   async function handleAccept() {
     if (!offer || isAccepting) return;
     setIsAccepting(true);
 
     try {
-      const socket = await getMatchingSocket();
-      socket.emit(
-        'session:accept',
-        { sessionId: offer.sessionId },
-        (res: { success?: boolean; sessionMatched?: SessionMatchedPayload; message?: string }) => {
-          setIsAccepting(false);
-          if (res?.success) {
-            setOutcome({
-              status: 'won',
-              message: 'Session accepted! Preparing your session room...',
-            });
-            setTimeout(() => {
-              router.push('/dashboard/sessions');
-            }, 1800);
-          } else {
-            // Lost race
-            setOutcome({
-              status: 'lost',
-              message: res?.message || 'Another therapist accepted this session first.',
-            });
-            setTimeout(() => {
-              clearCurrentOffer();
-            }, 3000);
+      // 1. Claim session via robust server API
+      const res = await fetch('/api/matching/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: offer.sessionId }),
+      });
+      const data = await res.json();
+
+      setIsAccepting(false);
+
+      if (data.won) {
+        // Broadcast acceptance to client via Supabase Realtime
+        if (channelRef.current) {
+          channelRef.current.send({
+            type: 'broadcast',
+            event: 'session:accepted',
+            payload: data.sessionMatched,
+          });
+        }
+
+        // Also notify via socket if connected
+        try {
+          const socket = await getMatchingSocket();
+          if (socket && socket.connected) {
+            socket.emit('session:accept', { sessionId: offer.sessionId });
           }
-        },
-      );
+        } catch {
+          // Socket optional
+        }
+
+        setOutcome({
+          status: 'won',
+          message: 'Session accepted! Entering session room...',
+        });
+        setTimeout(() => {
+          router.push(`/dashboard/session/${offer.sessionId}`);
+        }, 1500);
+      } else {
+        setOutcome({
+          status: 'lost',
+          message: data.message || 'Another therapist accepted this session first.',
+        });
+        setTimeout(() => {
+          clearCurrentOffer();
+        }, 3000);
+      }
     } catch {
       setIsAccepting(false);
       setOutcome({
@@ -158,8 +243,8 @@ export default function IncomingOfferModal() {
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
-        background: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(10px)',
+        background: 'rgba(15, 23, 42, 0.75)',
+        backdropFilter: 'blur(12px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -167,14 +252,15 @@ export default function IncomingOfferModal() {
       }}
     >
       <div
-        className="glass fade-in-up"
+        className="fade-in-up"
         style={{
           width: '100%',
           maxWidth: 480,
           borderRadius: '1.5rem',
-          padding: '2rem',
-          border: '1px solid rgba(58, 91, 239, 0.4)',
-          boxShadow: '0 0 50px rgba(58, 91, 239, 0.3)',
+          padding: '2.25rem 2rem',
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.25)',
           textAlign: 'center',
           position: 'relative',
         }}
@@ -187,12 +273,12 @@ export default function IncomingOfferModal() {
               width: 72,
               height: 72,
               borderRadius: '50%',
-              background: '#3b82f6',
+              background: '#2563eb',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '2rem',
-              boxShadow: '0 0 20px rgba(59, 130, 246, 0.4)',
+              boxShadow: '0 0 25px rgba(37, 99, 235, 0.4)',
             }}
           >
             {modalityIcon}
@@ -201,25 +287,25 @@ export default function IncomingOfferModal() {
                 position: 'absolute',
                 inset: -6,
                 borderRadius: '50%',
-                border: '2px solid rgba(96, 165, 250, 0.7)',
+                border: '2px solid rgba(59, 130, 246, 0.6)',
                 animation: 'radarPulse 1.5s infinite',
               }}
             />
           </div>
         </div>
 
-        <h3 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '0.25rem', color: '#fdfbf7' }}>
+        <h3 style={{ fontSize: '1.45rem', fontWeight: 700, marginBottom: '0.35rem', color: '#0f172a' }}>
           Incoming Instant Session Offer!
         </h3>
-        <p style={{ color: '#c9bca3', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+        <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
           First verified therapist to accept secures the session.
         </p>
 
         {/* Client & Session Details Card */}
         <div
           style={{
-            background: 'rgba(253, 251, 247, 0.04)',
-            border: '1px solid rgba(253, 251, 247, 0.09)',
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
             borderRadius: '1rem',
             padding: '1.25rem',
             marginBottom: '1.5rem',
@@ -227,31 +313,31 @@ export default function IncomingOfferModal() {
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
-            <span style={{ color: '#c9bca3', fontSize: '0.85rem' }}>Client</span>
-            <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#fdfbf7' }}>
+            <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Client</span>
+            <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#0f172a' }}>
               {offer.clientName}
             </span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
-            <span style={{ color: '#c9bca3', fontSize: '0.85rem' }}>Modality</span>
-            <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#60a5fa', textTransform: 'capitalize' }}>
+            <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Modality</span>
+            <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#2563eb', textTransform: 'capitalize' }}>
               {offer.type} Session
             </span>
           </div>
           {offer.languagePreference && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
-              <span style={{ color: '#c9bca3', fontSize: '0.85rem' }}>Language</span>
-              <span style={{ fontWeight: 500, fontSize: '0.85rem', color: '#fdfbf7' }}>
+              <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Language</span>
+              <span style={{ fontWeight: 500, fontSize: '0.85rem', color: '#0f172a' }}>
                 {offer.languagePreference}
               </span>
             </div>
           )}
           {offer.topic && (
-            <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-              <span style={{ color: '#c9bca3', fontSize: '0.8rem', display: 'block', marginBottom: '0.2rem' }}>
+            <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #e2e8f0' }}>
+              <span style={{ color: '#64748b', fontSize: '0.8rem', display: 'block', marginBottom: '0.2rem' }}>
                 Primary Concern / Focus:
               </span>
-              <span style={{ color: '#ede7d9', fontSize: '0.85rem', fontStyle: 'italic' }}>
+              <span style={{ color: '#334155', fontSize: '0.85rem', fontStyle: 'italic' }}>
                 &ldquo;{offer.topic}&rdquo;
               </span>
             </div>
@@ -260,9 +346,9 @@ export default function IncomingOfferModal() {
 
         {/* 30s Countdown Bar */}
         <div style={{ marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#c9bca3', marginBottom: '0.35rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#64748b', marginBottom: '0.35rem' }}>
             <span>Time to respond</span>
-            <span style={{ color: timeLeft <= 10 ? '#f87171' : '#60a5fa', fontWeight: 700 }}>
+            <span style={{ color: timeLeft <= 10 ? '#ef4444' : '#2563eb', fontWeight: 700 }}>
               {timeLeft}s
             </span>
           </div>
@@ -271,7 +357,7 @@ export default function IncomingOfferModal() {
               width: '100%',
               height: 6,
               borderRadius: 3,
-              background: 'rgba(253, 251, 247, 0.1)',
+              background: '#e2e8f0',
               overflow: 'hidden',
             }}
           >
@@ -279,7 +365,7 @@ export default function IncomingOfferModal() {
               style={{
                 height: '100%',
                 width: `${(timeLeft / 30) * 100}%`,
-                background: timeLeft <= 10 ? '#ef4444' : '#3b82f6',
+                background: timeLeft <= 10 ? '#ef4444' : '#2563eb',
                 transition: 'width 1s linear',
               }}
             />
@@ -290,14 +376,14 @@ export default function IncomingOfferModal() {
         {outcome && (
           <div
             style={{
-              padding: '0.75rem',
+              padding: '0.85rem',
               borderRadius: '0.75rem',
               marginBottom: '1rem',
               fontSize: '0.875rem',
               fontWeight: 600,
-              background: outcome.status === 'won' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-              color: outcome.status === 'won' ? '#34d399' : '#f87171',
-              border: outcome.status === 'won' ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
+              background: outcome.status === 'won' ? '#ecfdf5' : '#fef2f2',
+              color: outcome.status === 'won' ? '#047857' : '#b91c1c',
+              border: outcome.status === 'won' ? '1px solid #a7f3d0' : '1px solid #fecaca',
             }}
           >
             {outcome.message}
@@ -317,8 +403,8 @@ export default function IncomingOfferModal() {
                 padding: '0.85rem 1rem',
                 fontSize: '1rem',
                 fontWeight: 700,
-                background: '#10b981',
-                boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)',
+                background: '#059669',
+                boxShadow: '0 4px 15px rgba(5, 150, 105, 0.3)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -337,6 +423,7 @@ export default function IncomingOfferModal() {
                 flex: 1,
                 padding: '0.85rem 1rem',
                 fontSize: '0.9rem',
+                border: '1px solid #e2e8f0',
               }}
             >
               Pass

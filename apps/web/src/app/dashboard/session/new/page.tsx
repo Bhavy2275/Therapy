@@ -3,8 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import { getMatchingSocket, disconnectMatchingSocket } from '@/lib/socket';
 import type { SessionType, SessionMatchedPayload } from '@therapy/shared-types';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import {
   IconBolt,
   IconVideo,
@@ -55,10 +57,16 @@ export default function NewInstantSessionPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const currentSessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (channelRef.current) {
+        const supabase = createClient();
+        supabase.removeChannel(channelRef.current);
+      }
       disconnectMatchingSocket();
     };
   }, []);
@@ -68,54 +76,90 @@ export default function NewInstantSessionPage() {
     setErrorMsg(null);
     setSearchSeconds(0);
 
+    if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      setSearchSeconds((prev) => prev + 1);
+      setSearchSeconds((prev) => {
+        if (prev >= 59) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          setStep('timed_out');
+          if (channelRef.current && currentSessionIdRef.current) {
+            channelRef.current.send({
+              type: 'broadcast',
+              event: 'session:offer_expired',
+              payload: { sessionId: currentSessionIdRef.current },
+            });
+          }
+          return 60;
+        }
+        return prev + 1;
+      });
     }, 1000);
 
     try {
-      const socket = await getMatchingSocket();
-
-      // Setup event listeners
-      socket.off('session:matched');
-      socket.off('session:timed_out');
-      socket.off('session:cancelled');
-
-      socket.on('session:matched', (data: SessionMatchedPayload) => {
-        if (timerRef.current) clearInterval(timerRef.current);
-        setMatchedTherapist(data);
-        setStep('matched');
-      });
-
-      socket.on('session:timed_out', () => {
-        if (timerRef.current) clearInterval(timerRef.current);
-        setStep('timed_out');
-      });
-
-      socket.on('session:cancelled', () => {
-        if (timerRef.current) clearInterval(timerRef.current);
-        setStep('config');
-      });
-
-      // Emit request to gateway
-      socket.emit(
-        'session:request',
-        {
+      // 1. Create session via server API
+      const res = await fetch('/api/matching/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           type: sessionType,
           languagePreference: language,
           topic: topic.trim() || undefined,
-        },
-        (res: { success?: boolean; sessionId?: string; error?: string }) => {
-          if (res?.error) {
-            setErrorMsg(res.error);
-            setStep('config');
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to start matching request');
+      }
+
+      setSessionId(data.sessionId);
+      currentSessionIdRef.current = data.sessionId;
+
+      // 2. Broadcast offer via Supabase Realtime to all online therapists
+      const supabase = createClient();
+      const channel = supabase.channel('therapy:instant-matching');
+      channelRef.current = channel;
+
+      channel
+        .on('broadcast', { event: 'session:accepted' }, (msg: { payload: unknown }) => {
+          const matched = msg.payload as SessionMatchedPayload;
+          if (matched && matched.sessionId === data.sessionId) {
             if (timerRef.current) clearInterval(timerRef.current);
-          } else if (res?.sessionId) {
-            setSessionId(res.sessionId);
+            setMatchedTherapist(matched);
+            setStep('matched');
           }
-        },
-      );
-    } catch {
-      setErrorMsg('Could not connect to matching gateway. Please try again.');
+        })
+        .subscribe((status: string) => {
+          if (status === 'SUBSCRIBED') {
+            channel.send({
+              type: 'broadcast',
+              event: 'session:offer',
+              payload: data.offer,
+            });
+          }
+        });
+
+      // 3. Best effort Socket.io broadcast (if socket backend is up)
+      try {
+        const socket = await getMatchingSocket();
+        if (socket && socket.connected) {
+          socket.on('session:matched', (matchedData: SessionMatchedPayload) => {
+            if (timerRef.current) clearInterval(timerRef.current);
+            setMatchedTherapist(matchedData);
+            setStep('matched');
+          });
+          socket.emit('session:request', {
+            type: sessionType,
+            languagePreference: language,
+            topic: topic.trim() || undefined,
+          });
+        }
+      } catch {
+        // Socket optional
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error creating session request';
+      setErrorMsg(msg);
       setStep('config');
       if (timerRef.current) clearInterval(timerRef.current);
     }
@@ -123,53 +167,74 @@ export default function NewInstantSessionPage() {
 
   async function cancelRequest() {
     if (timerRef.current) clearInterval(timerRef.current);
-    try {
-      const socket = await getMatchingSocket();
-      if (sessionId) {
-        socket.emit('session:cancel', { sessionId });
+    const activeId = sessionId || currentSessionIdRef.current;
+    if (activeId) {
+      // 1. Tell therapists via Supabase Realtime broadcast that offer is expired/cancelled
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'session:offer_expired',
+          payload: { sessionId: activeId },
+        });
       }
-    } catch {
-      // socket disconnect fallback
+
+      // 2. Cancel in database
+      fetch('/api/matching/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: activeId }),
+      }).catch(() => null);
+
+      // 3. Also cancel via socket if connected
+      try {
+        const socket = await getMatchingSocket();
+        if (socket && socket.connected) {
+          socket.emit('session:cancel', { sessionId: activeId });
+        }
+      } catch {
+        // Socket optional
+      }
     }
     setStep('config');
     setSessionId(null);
+    currentSessionIdRef.current = null;
   }
 
   return (
-    <div style={{ minHeight: '100vh', position: 'relative' }}>
+    <div style={{ minHeight: '100vh', position: 'relative', background: '#f8f9fa' }}>
       <div className="mesh-bg" />
 
       {/* Nav */}
       <nav style={{
         position: 'sticky', top: 0, zIndex: 50,
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-        background: 'rgba(10, 15, 30, 0.8)',
+        borderBottom: '1px solid #e2e8f0',
+        background: 'rgba(255, 255, 255, 0.95)',
         backdropFilter: 'blur(16px)',
       }}>
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '4rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <Link href="/dashboard" style={{ color: '#9ca3af', fontSize: '0.875rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <Link href="/dashboard" style={{ color: '#64748b', fontSize: '0.875rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 500 }}>
               ← Dashboard
             </Link>
-            <span style={{ color: 'rgba(255,255,255,0.2)' }}>/</span>
-            <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>Instant Matching</span>
+            <span style={{ color: '#cbd5e1' }}>/</span>
+            <span style={{ fontWeight: 600, fontSize: '0.95rem', color: '#0f172a' }}>Instant Matching</span>
           </div>
 
           <span style={{
-            background: 'rgba(58, 91, 239, 0.15)',
-            border: '1px solid rgba(58, 91, 239, 0.3)',
-            color: '#93c5fd',
+            background: '#eff6ff',
+            border: '1px solid #bfdbfe',
+            color: '#1d4ed8',
             fontSize: '0.75rem',
-            padding: '0.2rem 0.6rem',
+            padding: '0.25rem 0.75rem',
             borderRadius: '1rem',
             display: 'inline-flex',
             alignItems: 'center',
             gap: '0.35rem',
+            fontWeight: 600,
           }}>
-            <IconBolt size={13} />
+            <IconBolt size={13} color="#2563eb" />
             <span>Live Matching Network</span>
           </span>
-
         </div>
       </nav>
 
@@ -178,19 +243,19 @@ export default function NewInstantSessionPage() {
         {step === 'config' && (
           <div className="fade-in-up">
             <div style={{ marginBottom: '2rem' }}>
-              <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+              <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem', color: '#0f172a' }}>
                 Start an <span className="gradient-text">Instant Session</span>
               </h1>
-              <p style={{ color: '#9ca3af', fontSize: '0.95rem' }}>
+              <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
                 Choose how you want to connect. We will immediately broadcast your request to all currently available therapists.
               </p>
             </div>
 
             {errorMsg && (
               <div style={{
-                background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)',
+                background: '#fef2f2', border: '1px solid #fecaca',
                 borderRadius: '0.65rem', padding: '0.85rem 1.25rem', marginBottom: '1.5rem',
-                color: '#f87171', fontSize: '0.875rem',
+                color: '#b91c1c', fontSize: '0.875rem', fontWeight: 500,
               }}>
                 {errorMsg}
               </div>
@@ -199,7 +264,7 @@ export default function NewInstantSessionPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
               {/* Modality Selector */}
               <div>
-                <label style={{ display: 'block', fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.75rem' }}>
+                <label style={{ display: 'block', fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.75rem', color: '#1e293b' }}>
                   1. Choose Connection Modality
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
@@ -209,22 +274,22 @@ export default function NewInstantSessionPage() {
                       <div
                         key={m.type}
                         onClick={() => setSessionType(m.type)}
-                        className="glass"
                         style={{
                           borderRadius: '0.85rem',
                           padding: '1.25rem',
                           cursor: 'pointer',
                           transition: 'all 0.2s ease',
-                          border: isSelected ? '2px solid #3a5bef' : '1px solid rgba(255,255,255,0.08)',
-                          background: isSelected ? 'rgba(58, 91, 239, 0.15)' : 'rgba(255,255,255,0.02)',
+                          border: isSelected ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+                          background: isSelected ? '#eff6ff' : '#ffffff',
+                          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
                         }}
                       >
                         <div style={{ marginBottom: '0.75rem' }}>{m.icon(isSelected)}</div>
 
-                        <div style={{ fontWeight: 600, fontSize: '1rem', color: isSelected ? '#93c5fd' : '#f9fafb', marginBottom: '0.25rem' }}>
+                        <div style={{ fontWeight: 600, fontSize: '1rem', color: isSelected ? '#1d4ed8' : '#1e293b', marginBottom: '0.25rem' }}>
                           {m.label}
                         </div>
-                        <p style={{ color: '#6b7280', fontSize: '0.8rem', lineHeight: 1.5 }}>{m.desc}</p>
+                        <p style={{ color: isSelected ? '#2563eb' : '#64748b', fontSize: '0.8rem', lineHeight: 1.5, margin: 0 }}>{m.desc}</p>
                       </div>
                     );
                   })}
@@ -232,11 +297,11 @@ export default function NewInstantSessionPage() {
               </div>
 
               {/* Language Selection */}
-              <div className="glass" style={{ borderRadius: '0.85rem', padding: '1.5rem' }}>
-                <label style={{ display: 'block', fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.5rem' }}>
+              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '0.85rem', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+                <label style={{ display: 'block', fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.35rem', color: '#1e293b' }}>
                   2. Language Preference
                 </label>
-                <p style={{ color: '#6b7280', fontSize: '0.825rem', marginBottom: '1rem' }}>
+                <p style={{ color: '#64748b', fontSize: '0.825rem', marginBottom: '1rem' }}>
                   We will prioritize therapists who speak your preferred language fluently.
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -251,11 +316,11 @@ export default function NewInstantSessionPage() {
                           padding: '0.4rem 0.85rem',
                           borderRadius: '2rem',
                           fontSize: '0.825rem',
-                          fontWeight: 500,
+                          fontWeight: isSelected ? 600 : 500,
                           cursor: 'pointer',
-                          border: isSelected ? '1px solid #14b8a6' : '1px solid rgba(255,255,255,0.1)',
-                          background: isSelected ? 'rgba(20, 184, 166, 0.2)' : 'rgba(255,255,255,0.03)',
-                          color: isSelected ? '#5eead4' : '#9ca3af',
+                          border: isSelected ? '1px solid #86efac' : '1px solid #e2e8f0',
+                          background: isSelected ? '#f0fdf4' : '#f8fafc',
+                          color: isSelected ? '#166534' : '#475569',
                           transition: 'all 0.15s ease',
                         }}
                       >
@@ -267,11 +332,11 @@ export default function NewInstantSessionPage() {
               </div>
 
               {/* Focus notes */}
-              <div className="glass" style={{ borderRadius: '0.85rem', padding: '1.5rem' }}>
-                <label style={{ display: 'block', fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.35rem' }}>
+              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '0.85rem', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+                <label style={{ display: 'block', fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.35rem', color: '#1e293b' }}>
                   3. What would you like to talk about today? (Optional)
                 </label>
-                <p style={{ color: '#6b7280', fontSize: '0.825rem', marginBottom: '0.75rem' }}>
+                <p style={{ color: '#64748b', fontSize: '0.825rem', marginBottom: '0.75rem' }}>
                   Briefly sharing what is on your mind helps the responding therapist prepare.
                 </p>
                 <textarea
@@ -280,6 +345,14 @@ export default function NewInstantSessionPage() {
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   placeholder="e.g. Feeling overwhelmed with work deadlines, relationship anxiety, or just need someone to talk through things with..."
+                  style={{
+                    width: '100%',
+                    background: '#ffffff',
+                    color: '#0f172a',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '0.5rem',
+                    padding: '0.75rem',
+                  }}
                 />
               </div>
 
@@ -304,7 +377,6 @@ export default function NewInstantSessionPage() {
                   <IconBolt size={18} />
                   <span>Find Available Therapist Now</span>
                 </button>
-
               </div>
             </div>
           </div>
@@ -312,12 +384,15 @@ export default function NewInstantSessionPage() {
 
         {/* Step 2: Radar Search State */}
         {step === 'searching' && (
-          <div className="glass fade-in-up" style={{
+          <div className="fade-in-up" style={{
+            background: '#ffffff',
             borderRadius: '1.5rem',
             padding: '4rem 2rem',
             textAlign: 'center',
             position: 'relative',
             overflow: 'hidden',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.04)',
           }}>
             {/* Animated Radar Ripples */}
             <div style={{
@@ -337,7 +412,7 @@ export default function NewInstantSessionPage() {
                   width: '100%',
                   height: '100%',
                   borderRadius: '50%',
-                  border: '2px solid rgba(58, 91, 239, 0.4)',
+                  border: '2px solid rgba(59, 130, 246, 0.35)',
                 }}
               />
               {/* Outer Ripple 2 */}
@@ -348,7 +423,7 @@ export default function NewInstantSessionPage() {
                   width: '100%',
                   height: '100%',
                   borderRadius: '50%',
-                  border: '2px solid rgba(45, 212, 191, 0.4)',
+                  border: '2px solid rgba(20, 184, 166, 0.35)',
                   animationDelay: '1.2s',
                 }}
               />
@@ -359,13 +434,13 @@ export default function NewInstantSessionPage() {
                   width: 80,
                   height: 80,
                   borderRadius: '50%',
-                  background: '#3b82f6',
+                  background: '#2563eb',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '2rem',
-                  color: '#fdfbf7',
-                  boxShadow: '0 0 25px rgba(59, 130, 246, 0.5)',
+                  color: '#ffffff',
+                  boxShadow: '0 0 25px rgba(37, 99, 235, 0.45)',
                   zIndex: 2,
                 }}
               >
@@ -376,14 +451,13 @@ export default function NewInstantSessionPage() {
                 ) : (
                   <IconMessageSquare size={36} color="#FFFFFF" />
                 )}
-
               </div>
             </div>
 
-            <h2 style={{ fontSize: '1.65rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+            <h2 style={{ fontSize: '1.65rem', fontWeight: 700, marginBottom: '0.5rem', color: '#0f172a' }}>
               Finding available therapists...
             </h2>
-            <p style={{ color: '#9ca3af', fontSize: '0.95rem', maxWidth: 440, margin: '0 auto 1.5rem', lineHeight: 1.6 }}>
+            <p style={{ color: '#64748b', fontSize: '0.95rem', maxWidth: 440, margin: '0 auto 1.5rem', lineHeight: 1.6 }}>
               Broadcasting your request to all currently online therapists. The first to accept will be connected with you.
             </p>
 
@@ -392,64 +466,75 @@ export default function NewInstantSessionPage() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.5rem',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              padding: '0.4rem 1.25rem',
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              padding: '0.45rem 1.25rem',
               borderRadius: '2rem',
               fontSize: '0.9rem',
-              color: '#93c5fd',
+              color: '#1d4ed8',
               marginBottom: '2.5rem',
+              fontWeight: 500,
             }}>
-              <span className="spinner" style={{ width: 14, height: 14 }} />
-              <span>Time elapsed: <strong>00:{String(searchSeconds).padStart(2, '0')}</strong> / 60s</span>
+              <span className="spinner" style={{ width: 14, height: 14, borderColor: '#bfdbfe', borderTopColor: '#2563eb' }} />
+              <span>Time elapsed: <strong style={{ color: '#1e40af' }}>00:{String(searchSeconds).padStart(2, '0')}</strong> / 60s</span>
             </div>
 
             {/* Calming Prompt */}
             <div style={{
-              background: 'rgba(58, 91, 239, 0.08)',
-              border: '1px solid rgba(58, 91, 239, 0.2)',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
               borderRadius: '0.85rem',
-              padding: '1.25rem',
-              maxWidth: 500,
+              padding: '1.25rem 1.5rem',
+              maxWidth: 520,
               margin: '0 auto 2.5rem',
-              color: '#d1d5db',
-              fontSize: '0.85rem',
+              color: '#334155',
+              fontSize: '0.875rem',
               lineHeight: 1.6,
             }}>
-              <IconLeaf size={14} style={{ verticalAlign: 'middle', marginRight: '0.4rem', color: '#6ee7b7' }} /><em>Take a slow, deep breath in... hold for a moment... and gently exhale. Your comfort and privacy are our highest priority.</em>
+              <IconLeaf size={16} style={{ verticalAlign: 'middle', marginRight: '0.5rem', color: '#10b981' }} />
+              <em style={{ color: '#475569', fontStyle: 'italic', fontWeight: 500 }}>
+                Take a slow, deep breath in... hold for a moment... and gently exhale. Your comfort and privacy are our highest priority.
+              </em>
             </div>
 
             {/* Cancel Action */}
-            <button
-              type="button"
-              onClick={cancelRequest}
-              className="btn-ghost"
-              style={{
-                padding: '0.65rem 1.75rem',
-                fontSize: '0.875rem',
-                color: '#f87171',
-                borderColor: 'rgba(239, 68, 68, 0.3)',
-              }}
-            >
-              Cancel Request
-            </button>
+            <div>
+              <button
+                type="button"
+                onClick={cancelRequest}
+                style={{
+                  padding: '0.65rem 1.75rem',
+                  fontSize: '0.875rem',
+                  color: '#dc2626',
+                  background: '#ffffff',
+                  border: '1px solid #fca5a5',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                Cancel Request
+              </button>
+            </div>
           </div>
         )}
 
         {/* Step 3: Match Found Celebration State */}
         {step === 'matched' && matchedTherapist && (
-          <div className="glass fade-in-up" style={{
+          <div className="fade-in-up" style={{
             borderRadius: '1.5rem',
             padding: '3.5rem 2rem',
             textAlign: 'center',
-            border: '2px solid rgba(16, 185, 129, 0.4)',
-            background: 'rgba(16, 185, 129, 0.06)',
+            border: '2px solid #10b981',
+            background: '#ffffff',
+            boxShadow: '0 10px 30px rgba(16, 185, 129, 0.1)',
           }}>
             <div style={{
               width: 72,
               height: 72,
               borderRadius: '50%',
-              background: 'rgba(16, 185, 129, 0.2)',
+              background: 'rgba(16, 185, 129, 0.15)',
               border: '2px solid #10b981',
               display: 'flex',
               alignItems: 'center',
@@ -460,21 +545,22 @@ export default function NewInstantSessionPage() {
               ✨
             </div>
 
-            <h2 style={{ fontSize: '1.85rem', fontWeight: 700, marginBottom: '0.35rem', color: '#34d399' }}>
+            <h2 style={{ fontSize: '1.85rem', fontWeight: 700, marginBottom: '0.35rem', color: '#047857' }}>
               Match Confirmed!
             </h2>
-            <p style={{ color: '#9ca3af', fontSize: '0.95rem', marginBottom: '2rem' }}>
+            <p style={{ color: '#64748b', fontSize: '0.95rem', marginBottom: '2rem' }}>
               You have been paired with a licensed professional.
             </p>
 
             {/* Therapist Dossier Card */}
-            <div className="glass" style={{
+            <div style={{
               borderRadius: '1rem',
               padding: '1.75rem',
               maxWidth: 480,
               margin: '0 auto 2.5rem',
               textAlign: 'left',
-              border: '1px solid rgba(255,255,255,0.12)',
+              border: '1px solid #e2e8f0',
+              background: '#f8fafc',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
                 <div style={{
@@ -486,13 +572,13 @@ export default function NewInstantSessionPage() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '1.5rem',
-                  color: '#fdfbf7',
+                  color: '#ffffff',
                   fontWeight: 700,
                 }}>
                   {matchedTherapist.therapistName.charAt(0)}
                 </div>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '1.15rem' }}>{matchedTherapist.therapistName}</div>
+                  <div style={{ fontWeight: 700, fontSize: '1.15rem', color: '#0f172a' }}>{matchedTherapist.therapistName}</div>
                   <span style={{
                     background: 'rgba(16, 185, 129, 0.15)',
                     color: '#047857',
@@ -528,6 +614,7 @@ export default function NewInstantSessionPage() {
                         borderRadius: '0.35rem',
                         fontSize: '0.725rem',
                         color: '#2d5a3c',
+                        fontWeight: 600,
                       }}
                     >
                       {s}
@@ -553,10 +640,13 @@ export default function NewInstantSessionPage() {
 
         {/* Step 4: Timed Out State */}
         {step === 'timed_out' && (
-          <div className="glass fade-in-up" style={{
+          <div className="fade-in-up" style={{
+            background: '#ffffff',
             borderRadius: '1.5rem',
             padding: '3.5rem 2rem',
             textAlign: 'center',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.04)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
               <IconClock size={40} color="#3b82f6" />
