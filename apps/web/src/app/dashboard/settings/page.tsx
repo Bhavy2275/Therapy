@@ -97,19 +97,19 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f9fa' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'hsl(var(--background))' }}>
         <div className="spinner" style={{ width: 36, height: 36 }} />
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8f9fa' }}>
+    <div style={{ minHeight: '100vh', background: 'hsl(var(--secondary))' }}>
       {/* Nav */}
       <nav style={{
         position: 'sticky', top: 0, zIndex: 50,
-        borderBottom: '1px solid #e2e8f0',
-        background: 'rgba(255,255,255,0.92)',
+        borderBottom: '1px solid hsl(var(--border))',
+        background: 'hsl(var(--background) / 0.95)',
         backdropFilter: 'blur(16px)',
       }}>
         <div style={{ maxWidth: 820, margin: '0 auto', padding: '0 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '4rem' }}>

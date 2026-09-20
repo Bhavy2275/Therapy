@@ -138,20 +138,20 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', position: 'relative', background: '#f8f9fa' }}>
+    <div style={{ minHeight: '100vh', position: 'relative', background: 'hsl(var(--background))' }}>
       <div className="mesh-bg" />
 
       {/* Nav */}
       <nav style={{
         position: 'sticky', top: 0, zIndex: 50,
-        borderBottom: '1px solid #e2e8f0',
-        background: 'rgba(255, 255, 255, 0.92)',
+        borderBottom: '1px solid hsl(var(--border))',
+        background: 'hsl(var(--background) / 0.92)',
         backdropFilter: 'blur(16px)',
       }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '4rem' }}>
-          <span style={{ fontSize: '1.25rem', fontWeight: 800 }}>
+          <span style={{ fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-body)' }}>
             <span className="gradient-text">Jarwis</span>{' '}
-            <span style={{ color: '#1e293b' }}>Help Me!</span>
+            <span style={{ color: 'hsl(var(--foreground))' }}>Help Me!</span>
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             {role === 'admin' && (
@@ -194,7 +194,7 @@ export default async function DashboardPage() {
       <main style={{ maxWidth: 1200, margin: '0 auto', padding: '3rem 1.5rem' }}>
         {/* Welcome */}
         <div className="fade-in-up" style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem', color: '#1e293b' }}>
+          <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem', color: 'hsl(var(--foreground))', fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>
             Welcome, <span className="gradient-text">{name}</span>
           </h1>
           <p style={{ color: '#64748b' }}>

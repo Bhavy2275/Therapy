@@ -271,7 +271,7 @@ export default function NewInstantSessionPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', position: 'relative', background: '#f8f9fa' }}>
+    <div style={{ minHeight: '100vh', position: 'relative', background: 'hsl(var(--secondary))' }}>
       <div className="mesh-bg" />
 
       {/* Nav */}

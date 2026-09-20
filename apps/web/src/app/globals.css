@@ -1,4 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
+  --background: 0 0% 100%;
+  --foreground: 210 14% 17%;
+  --primary: 210 14% 17%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 184 5% 55%;
+  --accent: 239 84% 67%;
+  --accent-foreground: 0 0% 100%;
+  --border: 0 0% 90%;
+  --ring: 239 84% 67%;
+  --radius: 0.5rem;
+  --font-display: 'Instrument Serif', serif;
+  --font-body: 'Inter', sans-serif;
+  --shadow-dashboard: 0 25px 80px -12px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.06);
+
   --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* Therapeutic Palette */
@@ -28,35 +51,43 @@ html {
 }
 
 body {
-  background: #f8f9fa;
-  color: #1e293b;
-  font-family: var(--font-sans);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* ── Brand Logo & Text Accent ────────────────────────────────────────────── */
 .gradient-text {
-  color: #3b82f6;
+  color: hsl(var(--accent));
   font-weight: 800;
+}
+
+/* ── Display headings use Instrument Serif ───────────────────────────────── */
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 
 /* ── Surface Containers / Lifted Cards ───────────────────────────────────── */
 .glass {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 20px -2px rgba(100, 116, 139, 0.07);
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.06), 0 1px 3px -1px rgba(0, 0, 0, 0.04);
 }
 
 .feature-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 12px -2px rgba(100, 116, 139, 0.05);
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 2px 12px -2px rgba(0, 0, 0, 0.04);
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .feature-card:hover {
   transform: translateY(-2px);
-  border-color: #3b82f6;
-  box-shadow: 0 8px 24px -4px rgba(59, 130, 246, 0.12);
+  border-color: hsl(var(--accent) / 0.5);
+  box-shadow: 0 8px 24px -4px rgba(99, 102, 241, 0.12);
 }
 
 /* ── Background Mesh ─────────────────────────────────────────────────────── */
@@ -67,28 +98,30 @@ body {
   pointer-events: none;
 }
 
-/* ── Primary CTA Button (Calm Sky Blue) ──────────────────────────────────── */
+/* ── Primary CTA Button ─────────────────────────────────────────────────── */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem 2rem;
-  background: #3b82f6;
-  color: #ffffff;
+  padding: 0.65rem 1.5rem;
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
   font-weight: 600;
-  font-size: 0.95rem;
-  border-radius: 0.75rem;
+  font-size: 0.9rem;
+  font-family: var(--font-body);
+  border-radius: 9999px;
   border: none;
   cursor: pointer;
-  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.25);
+  transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+  text-decoration: none;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #2563eb;
+  opacity: 0.88;
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.35);
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.38);
 }
 
 .btn-primary:active:not(:disabled) {
@@ -96,34 +129,36 @@ body {
 }
 
 .btn-primary:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* ── Secondary Ghost Button / Soft Border ────────────────────────────────── */
+/* ── Ghost / Outline Button ──────────────────────────────────────────────── */
 .btn-ghost {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background: #ffffff;
-  color: #64748b;
+  padding: 0.6rem 1.25rem;
+  background: hsl(var(--background));
+  color: hsl(var(--muted-foreground));
   font-weight: 500;
-  font-size: 0.95rem;
-  border-radius: 0.75rem;
-  border: 1px solid #e2e8f0;
+  font-size: 0.875rem;
+  font-family: var(--font-body);
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--border));
   cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  text-decoration: none;
 }
 
 .btn-ghost:hover {
-  background: #f1f5f9;
-  color: #1e293b;
-  border-color: #cbd5e1;
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
 }
 
-/* ── Crisis / SOS Button (Muted Plum / Crimson) ─────────────────────────── */
+/* ── Crisis / SOS Button ──────────────────────────────────────────────────── */
 .btn-crisis {
   display: inline-flex;
   align-items: center;
@@ -134,15 +169,16 @@ body {
   color: #ffffff;
   font-weight: 600;
   font-size: 0.9rem;
-  border-radius: 0.75rem;
+  font-family: var(--font-body);
+  border-radius: 9999px;
   border: none;
   cursor: pointer;
-  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
   box-shadow: 0 4px 14px rgba(159, 18, 57, 0.25);
 }
 
 .btn-crisis:hover {
-  background: #881337;
+  opacity: 0.9;
   transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(159, 18, 57, 0.35);
 }
@@ -163,23 +199,24 @@ body {
 /* ── Form Inputs ─────────────────────────────────────────────────────────── */
 .input {
   width: 100%;
-  padding: 0.75rem 1rem;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.65rem;
-  color: #1e293b;
-  font-size: 0.95rem;
+  padding: 0.7rem 1rem;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  color: hsl(var(--foreground));
+  font-family: var(--font-body);
+  font-size: 0.9rem;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .input::placeholder {
-  color: #94a3b8;
+  color: hsl(var(--muted-foreground));
 }
 
 .input:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  border-color: hsl(var(--accent));
+  box-shadow: 0 0 0 3px hsl(var(--accent) / 0.15);
 }
 
 .input-error {
@@ -194,8 +231,8 @@ body {
 .spinner {
   width: 1.1em;
   height: 1.1em;
-  border: 2px solid rgba(59, 130, 246, 0.3);
-  border-top-color: #3b82f6;
+  border: 2px solid hsl(var(--accent) / 0.25);
+  border-top-color: hsl(var(--accent));
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -235,3 +272,25 @@ body {
 .delay-2 { animation-delay: 0.2s; }
 .delay-3 { animation-delay: 0.3s; }
 .delay-4 { animation-delay: 0.4s; }
+
+/* ── Seamless Video Loop Crossfade ──────────────────────────────────────── */
+/*
+  Two video elements play the same clip.
+  vid2 is seeked to the midpoint via JS so it's temporally offset.
+  videoFade1 stays opaque most of the cycle, softly fades out at the seam.
+  videoFade2 has a negative delay equal to half the duration, so it's always
+  half a cycle behind — fading IN exactly as video1 fades OUT.
+*/
+@keyframes videoFade1 {
+  0%   { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes videoFade2 {
+  0%   { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+

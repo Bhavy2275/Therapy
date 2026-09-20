@@ -491,7 +491,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8f9fa' }}>
+    <div style={{ minHeight: '100vh', background: 'hsl(var(--secondary))' }}>
       {/* Toast Alert */}
       {toast && (
         <div
@@ -520,8 +520,8 @@ export default function AdminPage() {
       {/* Admin Navbar */}
       <nav
         style={{
-          borderBottom: '1px solid #e2e8f0',
-          background: 'rgba(255, 255, 255, 0.95)',
+          borderBottom: '1px solid hsl(var(--border))',
+          background: 'hsl(var(--background) / 0.95)',
           backdropFilter: 'blur(16px)',
           position: 'sticky',
           top: 0,
@@ -540,15 +540,15 @@ export default function AdminPage() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span style={{ fontSize: '1.25rem', fontWeight: 800 }}>
-              <span style={{ color: '#3b82f6' }}>Jarwis</span>{' '}
-              <span style={{ color: '#1e293b' }}>Help Me!</span>
+            <span style={{ fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-body)' }}>
+              <span className="gradient-text">Jarwis</span>{' '}
+              <span style={{ color: 'hsl(var(--foreground))' }}>Help Me!</span>
             </span>
             <span
               style={{
-                background: '#eff6ff',
-                border: '1px solid #bfdbfe',
-                color: '#1d4ed8',
+                background: 'hsl(var(--accent) / 0.1)',
+                border: '1px solid hsl(var(--accent) / 0.25)',
+                color: 'hsl(var(--accent))',
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 padding: '0.15rem 0.6rem',
@@ -585,8 +585,8 @@ export default function AdminPage() {
       <main style={{ maxWidth: 1200, margin: '0 auto', padding: '2.5rem 1.5rem 5rem' }}>
         {/* Header */}
         <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.4rem', color: '#1e293b' }}>
-            Admin <span style={{ color: '#3b82f6' }}>Control Centre</span>
+          <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.4rem', color: 'hsl(var(--foreground))', fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>
+            Admin <span style={{ color: 'hsl(var(--accent))' }}>Control Centre</span>
           </h1>
           <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
             Manage therapist applications, delete user accounts, and configure UPI donation settings.

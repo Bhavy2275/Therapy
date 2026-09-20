@@ -96,13 +96,13 @@ function RegisterForm() {
   }
 
   return (
-    <div className="glass fade-in-up" style={{ width: '100%', maxWidth: 460, borderRadius: '1.25rem', padding: '2.5rem' }}>
+    <div className="glass fade-in-up" style={{ width: '100%', maxWidth: 460, borderRadius: '1.25rem', padding: '2.5rem', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', boxShadow: '0 10px 40px rgba(0,0,0,0.08)' }}>
       {/* Header */}
       <div style={{ marginBottom: '1.75rem', textAlign: 'center' }}>
         <Link href="/" style={{ textDecoration: 'none' }}>
-          <span style={{ fontSize: '1.5rem', fontWeight: 800 }}>
+          <span style={{ fontSize: '1.5rem', fontWeight: 800, fontFamily: 'var(--font-body)' }}>
             <span className="gradient-text">Jarwis</span>{' '}
-            <span style={{ color: '#1e293b' }}>Help Me!</span>
+            <span style={{ color: 'hsl(var(--foreground))' }}>Help Me!</span>
           </span>
         </Link>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '1.25rem', marginBottom: '0.35rem', color: '#1e293b' }}>
@@ -128,10 +128,10 @@ function RegisterForm() {
               border: 'none', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600,
               transition: 'all 0.2s',
               background: role === r
-                ? '#3b82f6'
+                ? 'hsl(var(--accent))'
                 : 'transparent',
-              color: role === r ? '#ffffff' : '#64748b',
-              boxShadow: role === r ? '0 2px 8px rgba(59, 130, 246, 0.25)' : 'none',
+              color: role === r ? 'hsl(var(--accent-foreground))' : 'hsl(var(--muted-foreground))',
+              boxShadow: role === r ? '0 2px 8px hsl(var(--accent) / 0.28)' : 'none',
             }}
           >
             {r === 'client'
@@ -329,7 +329,7 @@ function RegisterForm() {
 
       <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: '#64748b' }}>
         Already have an account?{' '}
-        <Link href="/login" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: 600 }}>
+        <Link href="/login" style={{ color: 'hsl(var(--accent))', textDecoration: 'none', fontWeight: 600 }}>
           Sign in
         </Link>
       </p>

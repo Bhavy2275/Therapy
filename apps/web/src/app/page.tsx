@@ -1,50 +1,19 @@
-import type { Metadata } from 'next';
+'use client';
+
+import React from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import {
-  IconBolt,
-  IconVideo,
-  IconCheck,
-  IconCalendar,
-  IconGlobe,
-  IconShield,
-} from '@/components/Icons';
+  Play,
+  Zap,
+  Video,
+  CheckCircle,
+  Calendar,
+  Globe,
+  Shield,
+  ArrowRight,
+} from 'lucide-react';
 
-export const metadata: Metadata = {
-  title: 'Jarwis Help Me! — Connect With a Therapist Instantly',
-};
-
-const features = [
-  {
-    icon: <IconBolt size={26} color="#3b82f6" />,
-    title: 'Instant Matching',
-    desc: 'Request a session and get matched with an available therapist in under a minute.',
-  },
-  {
-    icon: <IconVideo size={26} color="#3b82f6" />,
-    title: 'Voice, Video & Chat',
-    desc: 'Choose how you want to connect — private video, voice-only, or text chat.',
-  },
-  {
-    icon: <IconCheck size={26} color="#84a98c" />,
-    title: 'Verified Therapists',
-    desc: 'Every therapist is manually reviewed and license-verified by our team.',
-  },
-  {
-    icon: <IconCalendar size={26} color="#3b82f6" />,
-    title: 'Schedule Ahead',
-    desc: 'Book a session in advance when you prefer a specific therapist or time.',
-  },
-  {
-    icon: <IconGlobe size={26} color="#3b82f6" />,
-    title: 'India & Global',
-    desc: 'Therapists and clients from India and across the world, multiple languages supported.',
-  },
-  {
-    icon: <IconShield size={26} color="#3b82f6" />,
-    title: 'Private & Secure',
-    desc: 'End-to-end encrypted sessions. Your conversations stay between you and your therapist.',
-  },
-];
 
 const stats = [
   { value: '500+', label: 'Verified Therapists' },
@@ -53,84 +22,204 @@ const stats = [
   { value: '24/7', label: 'Real-Time Availability' },
 ];
 
+const features = [
+  {
+    icon: <Zap className="w-6 h-6 text-accent" />,
+    title: 'Instant Matching',
+    desc: 'Request a session and get matched with an available verified therapist in under a minute.',
+  },
+  {
+    icon: <Video className="w-6 h-6 text-accent" />,
+    title: 'Voice, Video & Chat',
+    desc: 'Choose how you want to connect — private video, voice-only, or secure text messaging.',
+  },
+  {
+    icon: <CheckCircle className="w-6 h-6 text-emerald-600" />,
+    title: 'Verified Therapists',
+    desc: 'Every therapist is manually reviewed and license-verified by our clinical team.',
+  },
+  {
+    icon: <Calendar className="w-6 h-6 text-accent" />,
+    title: 'Schedule Ahead',
+    desc: 'Book a session in advance when you prefer a specific practitioner or dedicated time slot.',
+  },
+  {
+    icon: <Globe className="w-6 h-6 text-accent" />,
+    title: 'India & Global',
+    desc: 'Therapists and clients from India and worldwide, with multilingual consultations supported.',
+  },
+  {
+    icon: <Shield className="w-6 h-6 text-accent" />,
+    title: 'Private & Secure',
+    desc: 'End-to-end encrypted sessions. Your conversations stay strictly between you and your therapist.',
+  },
+];
+
 export default function LandingPage() {
+  const vid1Ref = React.useRef<HTMLVideoElement>(null);
+  const vid2Ref = React.useRef<HTMLVideoElement>(null);
+
+  // Seek video2 to the midpoint of the clip so the two copies are out of phase.
+  // When video1 fades out at its end, video2 is at the midpoint — no hard cut visible.
+  React.useEffect(() => {
+    const vid2 = vid2Ref.current;
+    if (!vid2) return;
+    const onMeta = () => {
+      if (vid2.duration && isFinite(vid2.duration)) {
+        vid2.currentTime = vid2.duration / 2;
+      }
+    };
+    if (vid2.readyState >= 1) {
+      onMeta();
+    } else {
+      vid2.addEventListener('loadedmetadata', onMeta, { once: true });
+    }
+  }, []);
   return (
-    <div style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden', background: '#f8f9fa' }}>
-      {/* ── Nav ──────────────────────────────────────────────────────────── */}
-      <nav style={{
-        position: 'sticky', top: 0, zIndex: 50,
-        borderBottom: '1px solid #e2e8f0',
-        background: 'rgba(255, 255, 255, 0.92)',
-        backdropFilter: 'blur(16px)',
-      }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '4rem' }}>
-          <span style={{ fontSize: '1.35rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            <span className="gradient-text">Jarwis</span>{' '}
-            <span style={{ color: '#1e293b' }}>Help Me!</span>
-          </span>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <Link href="/donate" className="btn-secondary" style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }}>
-              Support Mission
-            </Link>
-            <Link href="/login/client" className="btn-ghost" style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }}>
-              Client Login
-            </Link>
-            <Link href="/login/therapist" className="btn-ghost" style={{ padding: '0.45rem 1rem', fontSize: '0.85rem', color: '#6366f1' }}>
-              Therapist Portal
-            </Link>
-            <Link href="/register" className="btn-primary" style={{ padding: '0.45rem 1.15rem', fontSize: '0.85rem' }}>
+    <div className="min-h-screen flex flex-col bg-background text-foreground font-body selection:bg-accent/20">
+      {/* ── Top Hero Section with Fullscreen Video Background ──────────────── */}
+      <div className="relative min-h-screen flex flex-col overflow-hidden">
+        {/* Background Video – two staggered videos crossfade so the loop cut is invisible */}
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+          <video
+            ref={vid1Ref}
+            autoPlay
+            loop
+            muted
+            playsInline
+            style={{ animation: 'videoFade1 var(--vid-dur, 16s) linear infinite' }}
+            className="absolute inset-0 w-full h-full object-cover will-change-[opacity]"
+          >
+            <source
+              src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260319_015952_e1deeb12-8fb7-4071-a42a-60779fc64ab6.mp4"
+              type="video/mp4"
+            />
+          </video>
+          <video
+            ref={vid2Ref}
+            autoPlay
+            loop
+            muted
+            playsInline
+            style={{ animation: 'videoFade2 var(--vid-dur, 16s) linear infinite', animationDelay: '-8s' }}
+            className="absolute inset-0 w-full h-full object-cover will-change-[opacity]"
+          >
+            <source
+              src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260319_015952_e1deeb12-8fb7-4071-a42a-60779fc64ab6.mp4"
+              type="video/mp4"
+            />
+          </video>
+        </div>
+
+        {/* ── Navbar ──────────────────────────────────────────────────────── */}
+        <header className="relative z-20 flex items-center justify-between px-6 md:px-12 lg:px-20 py-5 font-body">
+          {/* Left: Brand Logo */}
+          <Link href="/" className="text-xl font-semibold tracking-tight text-foreground flex items-center gap-1.5">
+            <span className="text-accent text-lg">✦</span>
+            <span className="text-foreground font-bold">Jarwis</span>
+            <span className="text-muted-foreground font-medium">Help Me!</span>
+          </Link>
+
+          {/* Right: Nav links + Portal Actions */}
+          <div className="flex items-center gap-6 md:gap-8">
+            <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-muted-foreground">
+              <Link href="/donate" className="hover:text-foreground transition-colors">
+                Support Mission
+              </Link>
+              <Link href="/login/client" className="hover:text-foreground transition-colors">
+                Client Login
+              </Link>
+              <Link href="/login/therapist" className="text-accent hover:opacity-80 transition-colors">
+                Therapist Portal
+              </Link>
+            </nav>
+
+            <Link
+              href="/register"
+              className="rounded-full px-5 py-2 text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 transition-all shadow-sm inline-flex items-center justify-center"
+            >
               Get Started
             </Link>
           </div>
+        </header>
 
-        </div>
-      </nav>
+        {/* ── Hero Main Content ────────────────────────────────────────────── */}
+        <main className="relative z-10 flex flex-col items-center w-full px-4 flex-1 pt-4 md:pt-8 pb-12">
+          {/* 1. Badge */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mb-5"
+          >
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background/95 backdrop-blur-sm px-4 py-1.5 text-sm text-muted-foreground font-body shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
+              <span>Now available in India &amp; internationally</span>
+            </div>
+          </motion.div>
 
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '6rem 1.5rem 5rem', textAlign: 'center' }}>
-        <div className="fade-in-up">
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-            background: '#ffffff', border: '1px solid #e2e8f0',
-            borderRadius: '2rem', padding: '0.4rem 1.1rem', marginBottom: '2rem',
-            fontSize: '0.875rem', color: '#64748b',
-            boxShadow: '0 2px 8px rgba(100, 116, 139, 0.06)',
-          }}>
-            <span style={{ color: '#3b82f6', fontSize: '0.75rem' }}>●</span>
-            <span>Now available in India &amp; internationally</span>
-          </div>
-        </div>
+          {/* 2. Headline with Instrument Serif */}
+          <motion.h1
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="text-center font-display text-5xl md:text-6xl lg:text-[4.75rem] leading-[1.0] tracking-tight text-foreground max-w-2xl"
+          >
+            Professional therapy, <span className="italic">right when you need it</span>
+          </motion.h1>
 
-        <h1 className="fade-in-up delay-1" style={{ fontSize: 'clamp(2.5rem, 6vw, 4.5rem)', fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.03em', marginBottom: '1.5rem', color: '#1e293b' }}>
-          Professional therapy,{' '}
-          <span className="gradient-text">right when you need it</span>
-        </h1>
+          {/* 3. Subheadline */}
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mt-4 text-center text-base md:text-lg text-muted-foreground max-w-[640px] leading-relaxed font-body"
+          >
+            Connect instantly with verified therapists for live voice, video, or chat sessions.
+            Free to use — supported by your generosity.
+          </motion.p>
 
-        <p className="fade-in-up delay-2" style={{ fontSize: 'clamp(1rem, 2vw, 1.2rem)', color: '#64748b', maxWidth: 620, margin: '0 auto 2.5rem', lineHeight: 1.7 }}>
-          Connect instantly with verified therapists for live voice, video, or chat sessions.
-          Free to use — supported by your generosity.
-        </p>
+          {/* 4. Action Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="mt-6 flex items-center gap-3.5 flex-wrap justify-center"
+          >
+            <Link
+              href="/register?role=client"
+              className="rounded-full px-6 py-3 text-sm font-medium font-body bg-primary text-primary-foreground hover:opacity-90 transition-all shadow-md inline-flex items-center justify-center h-11"
+            >
+              I need help
+            </Link>
+            <Link
+              href="/register?role=therapist"
+              className="rounded-full px-6 py-3 text-sm font-medium font-body bg-background/95 backdrop-blur-sm border border-border text-foreground hover:bg-secondary transition-all shadow-sm inline-flex items-center justify-center h-11"
+            >
+              I&apos;m here to help
+            </Link>
+            <button
+              type="button"
+              aria-label="Play video demo"
+              className="h-11 w-11 rounded-full border-0 bg-background shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:bg-background/80 flex items-center justify-center transition-transform hover:scale-105"
+            >
+              <Play className="h-4 w-4 fill-foreground text-foreground translate-x-0.5" />
+            </button>
+          </motion.div>
 
-        <div className="fade-in-up delay-3" style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link href="/register?role=client" className="btn-primary" style={{ fontSize: '1rem', padding: '0.875rem 2.25rem' }}>
-            I need help
-          </Link>
-          <Link href="/register?role=therapist" className="btn-ghost" style={{ fontSize: '1rem', padding: '0.875rem 2.25rem' }}>
-            I&apos;m here to help
-          </Link>
-        </div>
 
-        {/* Stats */}
-        <div className="fade-in-up delay-4" style={{
-          display: 'flex', justifyContent: 'center', flexWrap: 'wrap',
-          gap: '2.5rem', marginTop: '4rem',
-        }}>
+        </main>
+      </div>
+
+      {/* ── Stats Section ─────────────────────────────────────────────────── */}
+      <section className="relative z-10 py-16 px-6 bg-secondary/40 border-y border-border">
+        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {stats.map((s) => (
-            <div key={s.label} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#3b82f6' }}>
+            <div key={s.label} className="flex flex-col items-center">
+              <div className="font-display text-4xl md:text-5xl font-bold tracking-tight text-foreground">
                 {s.value}
               </div>
-              <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.25rem', fontWeight: 500 }}>
+              <div className="text-sm text-muted-foreground mt-1.5 font-medium">
                 {s.label}
               </div>
             </div>
@@ -138,89 +227,89 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Features ─────────────────────────────────────────────────────── */}
-      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '4rem 1.5rem' }}>
-        <h2 style={{ textAlign: 'center', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', fontWeight: 700, marginBottom: '0.75rem', letterSpacing: '-0.02em', color: '#1e293b' }}>
-          Everything you need to feel better
-        </h2>
-        <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '3rem', fontSize: '1.05rem' }}>
-          Built for both clients and therapists, with care.
-        </p>
+      {/* ── Features Section ──────────────────────────────────────────────── */}
+      <section className="relative z-10 py-24 px-6 md:px-12 lg:px-20 max-w-6xl mx-auto w-full">
+        <div className="text-center max-w-2xl mx-auto mb-16">
+          <h2 className="font-display text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-3">
+            Everything you need to feel better
+          </h2>
+          <p className="text-base md:text-lg text-muted-foreground">
+            Built for both clients and therapists, with care and human touch.
+          </p>
+        </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '1.25rem',
-        }}>
-          {features.map((f, i) => (
-            <div key={f.title} className="feature-card fade-in-up" style={{
-              borderRadius: '1rem', padding: '1.75rem',
-              animationDelay: `${i * 0.07}s`,
-            }}>
-              <div style={{ marginBottom: '1rem' }}>{f.icon}</div>
-              <h3 style={{ fontWeight: 600, marginBottom: '0.5rem', fontSize: '1.05rem', color: '#1e293b' }}>{f.title}</h3>
-              <p style={{ color: '#64748b', fontSize: '0.9rem', lineHeight: 1.6 }}>{f.desc}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {features.map((f) => (
+            <div
+              key={f.title}
+              className="rounded-2xl p-7 bg-background border border-border hover:border-accent/50 hover:shadow-lg transition-all duration-200 flex flex-col justify-between"
+            >
+              <div>
+                <div className="w-12 h-12 rounded-xl bg-secondary/80 flex items-center justify-center mb-5">
+                  {f.icon}
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  {f.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {f.desc}
+                </p>
+              </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── CTA ──────────────────────────────────────────────────────────── */}
-      <section style={{ padding: '5rem 1.5rem' }}>
-        <div style={{
-          maxWidth: 720, margin: '0 auto', textAlign: 'center',
-          background: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: '1.5rem', padding: '3.5rem 2rem',
-          boxShadow: '0 4px 24px -2px rgba(100, 116, 139, 0.08)',
-        }}>
-          <h2 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.25rem)', fontWeight: 700, marginBottom: '1rem', color: '#1e293b' }}>
+      {/* ── Call to Action ────────────────────────────────────────────────── */}
+      <section className="relative z-10 py-20 px-6">
+        <div className="max-w-4xl mx-auto rounded-3xl p-10 md:p-16 text-center bg-gradient-to-b from-secondary/60 to-secondary/20 border border-border shadow-xl backdrop-blur-sm">
+          <h2 className="font-display text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-4">
             Ready to start your journey?
           </h2>
-          <p style={{ color: '#64748b', marginBottom: '2rem', fontSize: '1.05rem' }}>
-            No subscriptions. No commitments. Just connect.
+          <p className="text-base md:text-lg text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
+            No subscriptions. No commitments. Just connect with someone who cares.
           </p>
-          <Link href="/register" className="btn-primary" style={{ fontSize: '1rem', padding: '0.875rem 2.5rem' }}>
-            Start for Free →
+          <Link
+            href="/register"
+            className="rounded-full px-8 py-4 text-base font-medium bg-primary text-primary-foreground hover:opacity-90 transition-all shadow-lg inline-flex items-center gap-2"
+          >
+            <span>Start for Free</span>
+            <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </section>
 
-      {/* ── Footer ───────────────────────────────────────────────────────── */}
-      <footer style={{
-        borderTop: '1px solid #e2e8f0',
-        padding: '2.5rem 1.5rem',
-        textAlign: 'center',
-        color: '#64748b',
-        fontSize: '0.875rem',
-        background: '#ffffff',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '0.75rem',
-      }}>
-        <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <Link href="/donate" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: 600 }}>
-            Support Mission
-          </Link>
-          <span>•</span>
-          <Link href="/login/client" style={{ color: '#64748b', textDecoration: 'none' }}>
-            Client Login
-          </Link>
-          <span>•</span>
-          <Link href="/login/therapist" style={{ color: '#64748b', textDecoration: 'none' }}>
-            Therapist Portal
-          </Link>
-          <span>•</span>
-          <Link href="/register" style={{ color: '#64748b', textDecoration: 'none' }}>
-            Get Started
-          </Link>
-        </div>
-        <div>
-          © {new Date().getFullYear()} Jarwis Help Me!. Built with care.
+      {/* ── Footer ────────────────────────────────────────────────────────── */}
+      <footer className="relative z-10 border-t border-border py-12 px-6 text-center bg-background">
+        <div className="max-w-5xl mx-auto flex flex-col items-center gap-6">
+          <div className="flex items-center gap-2">
+            <span className="text-accent text-lg">✦</span>
+            <span className="font-semibold text-foreground tracking-tight">Jarwis Help Me!</span>
+          </div>
+
+          <div className="flex items-center gap-6 flex-wrap justify-center text-sm text-muted-foreground">
+            <Link href="/donate" className="hover:text-foreground text-accent transition-colors font-medium">
+              Support Mission
+            </Link>
+            <span>•</span>
+            <Link href="/login/client" className="hover:text-foreground transition-colors">
+              Client Login
+            </Link>
+            <span>•</span>
+            <Link href="/login/therapist" className="hover:text-foreground transition-colors">
+              Therapist Portal
+            </Link>
+            <span>•</span>
+            <Link href="/register" className="hover:text-foreground transition-colors">
+              Get Started
+            </Link>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            © {new Date().getFullYear()} Jarwis Help Me!. Built with care.
+          </p>
         </div>
       </footer>
     </div>
   );
 }
-

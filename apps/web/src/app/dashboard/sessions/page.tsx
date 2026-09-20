@@ -185,15 +185,15 @@ export default function SessionsPage() {
   });
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8f9fa', color: '#1e293b' }}>
+    <div style={{ minHeight: '100vh', background: 'hsl(var(--secondary))', color: 'hsl(var(--foreground))' }}>
       {/* Nav */}
       <nav
         style={{
           position: 'sticky',
           top: 0,
           zIndex: 50,
-          borderBottom: '1px solid #e2e8f0',
-          background: 'rgba(255, 255, 255, 0.92)',
+          borderBottom: '1px solid hsl(var(--border))',
+          background: 'hsl(var(--background) / 0.92)',
           backdropFilter: 'blur(16px)',
         }}
       >

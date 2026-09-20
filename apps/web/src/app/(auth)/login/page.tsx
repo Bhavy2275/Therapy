@@ -93,17 +93,17 @@ function LoginForm() {
         maxWidth: 440,
         borderRadius: '1.25rem',
         padding: '2.5rem',
-        border: '1px solid #e2e8f0',
-        background: '#ffffff',
-        boxShadow: '0 10px 35px rgba(0,0,0,0.06)',
+        border: '1px solid hsl(var(--border))',
+        background: 'hsl(var(--background))',
+        boxShadow: '0 10px 40px rgba(0,0,0,0.08)',
       }}
     >
       {/* Header */}
       <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
         <Link href="/" style={{ textDecoration: 'none' }}>
-          <span style={{ fontSize: '1.45rem', fontWeight: 800 }}>
+          <span style={{ fontSize: '1.45rem', fontWeight: 800, fontFamily: 'var(--font-body)' }}>
             <span className="gradient-text">Jarwis</span>{' '}
-            <span style={{ color: '#1e293b' }}>Help Me!</span>
+            <span style={{ color: 'hsl(var(--foreground))' }}>Help Me!</span>
           </span>
         </Link>
         <h1
@@ -147,9 +147,9 @@ function LoginForm() {
             fontSize: '0.85rem',
             fontWeight: 600,
             transition: 'all 0.2s',
-            background: isClient ? '#2563eb' : 'transparent',
-            color: isClient ? '#ffffff' : '#64748b',
-            boxShadow: isClient ? '0 2px 8px rgba(37, 99, 235, 0.25)' : 'none',
+            background: isClient ? 'hsl(var(--foreground))' : 'transparent',
+            color: isClient ? 'hsl(var(--background))' : 'hsl(var(--muted-foreground))',
+            boxShadow: isClient ? '0 2px 8px rgba(0,0,0,0.18)' : 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -172,9 +172,9 @@ function LoginForm() {
             fontSize: '0.85rem',
             fontWeight: 600,
             transition: 'all 0.2s',
-            background: !isClient ? '#6366f1' : 'transparent',
-            color: !isClient ? '#ffffff' : '#64748b',
-            boxShadow: !isClient ? '0 2px 8px rgba(99, 102, 241, 0.25)' : 'none',
+            background: !isClient ? 'hsl(var(--accent))' : 'transparent',
+            color: !isClient ? 'hsl(var(--accent-foreground))' : 'hsl(var(--muted-foreground))',
+            boxShadow: !isClient ? '0 2px 8px hsl(var(--accent) / 0.3)' : 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -297,7 +297,7 @@ function LoginForm() {
             padding: '0.75rem',
             fontSize: '0.95rem',
             fontWeight: 600,
-            background: isClient ? '#2563eb' : '#6366f1',
+            background: isClient ? 'hsl(var(--foreground))' : 'hsl(var(--accent))',
             borderRadius: '0.5rem',
           }}
         >
@@ -327,7 +327,7 @@ function LoginForm() {
           <Link
             href={isClient ? '/register?role=client' : '/register?role=therapist'}
             style={{
-              color: isClient ? '#2563eb' : '#6366f1',
+              color: isClient ? 'hsl(var(--accent))' : 'hsl(var(--accent))',
               textDecoration: 'none',
               fontWeight: 600,
             }}
