@@ -164,7 +164,7 @@ export default function LandingPage() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="text-center font-display text-5xl md:text-6xl lg:text-[4.75rem] leading-[1.0] tracking-tight text-foreground max-w-2xl"
           >
-            Professional therapy, <span className="italic">right when you need it</span>
+            HELP Available, <span className="italic">right when you need it</span>
           </motion.h1>
 
           {/* 3. Subheadline */}
