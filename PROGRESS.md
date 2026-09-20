@@ -262,8 +262,52 @@
 
 ---
 
-## Phase 7 — Polish & Launch Readiness ⏳ READY FOR TESTING
+## Phase 7 — User Flow & Admin Management ✅ COMPLETE
 
-- TypeScript & Turbopack production builds passing across `apps/web`.
+**Completed:** 2026-09-20
+
+- **Dedicated Login Portals**:
+  - `/login/client`: Tailored login flow for clients with role verification and mismatch routing.
+  - `/login/therapist`: Dedicated portal for licensed therapists with clinical credential checks.
+- **Landing Page Hero CTAs**:
+  - Primary button: "I need help" (routes to `/login/client`).
+  - Secondary button: "I'm here to help" (routes to `/login/therapist`).
+- **Admin User Management**:
+  - Comprehensive user registry table in the Admin Control Centre.
+  - Permanent user deletion (`/api/admin/users/delete`) with cascade cleanup across sessions, profiles, availability slots, and Supabase Auth.
+  - Self-deletion protection ensuring admins cannot delete their own account.
+
+---
+
+## Phase 8 — 19-Point Production Security Checklist & QR Donation Upload ✅ COMPLETE
+
+**Completed:** 2026-09-20
+
+### 1. Security Checklist Verification & Implementation (All 19 Items Passed)
+1. **Enable RLS**: Verified on all Supabase tables (`users`, `therapist_profiles`, `client_profiles`, `availability_slots`, `sessions`, `donations`, `platform_settings`).
+2. **Tighten CORS Settings**: Strict origin whitelisting (`WEB_URL`, `localhost`, `127.0.0.1`, `*.vercel.app`) with unauthorized request blocking.
+3. **Parameterized SQL Queries**: All queries use `@supabase/supabase-js` query builder with zero string concatenation.
+4. **Verify Email Addresses**: PKCE code exchange flow configured in `/auth/callback`.
+5. **Keep Tokens Out of LocalStorage**: `@supabase/ssr` secure `HttpOnly` and `SameSite=Lax` cookies.
+6. **Hide .env Files**: Gitignore strictly configured with verified zero secret leaks.
+7. **Validate Form Inputs**: NestJS global `ValidationPipe` with whitelist and forbidden non-whitelisted fields.
+8. **Protect Admin Routes**: Middleware + server-side role re-validation on all `/api/admin/*` routes.
+9. **Disable Production Debugging**: Swagger and verbose error traces restricted to non-production.
+10. **Server-Side API Secrets**: Service role keys isolated to server execution contexts.
+11. **Security Review**: OWASP Top 10 vulnerabilities checked and audited.
+12. **Rate Limit Requests**: Express rate limiting on API endpoints + sliding window in-memory limiter in Next.js.
+13. **Validate File Uploads**: Strict size limits (10MB/5MB) and MIME-type/extension verification.
+14. **Keep Sensitive Data from Logs**: Sanitized error handling and removed credential logging.
+15. **Hash Passwords Securely**: Supabase bcrypt with high-work-factor salt rounds.
+16. **Verify Webhook Signatures**: Timing-safe HMAC SHA-256 webhook signature verification utility (`verifyWebhookSignature`).
+17. **Server-Side Permissions**: NestJS `RolesGuard` and Supabase RLS policies.
+18. **Block Cross-Site Scripting (XSS)**: Added `X-XSS-Protection: 1; mode=block` and strict Content Security Policy (`Content-Security-Policy`).
+19. **Update Dependencies**: Modern stack across Next.js 16, React 19, Supabase JS 2.116, NestJS 12, LiveKit Client 2.22.
+
+### 2. Admin Donation QR Code & UPI Management
+- Direct drag-and-drop & click file upload for QR code images (`/api/admin/platform-settings/upload-qr`).
+- Automatic upload to Supabase Storage `platform-assets` bucket with public URL or inline Data URI fallback.
+- Real-time side-by-side simulation preview showing exactly how the QR code, UPI ID, and message appear to donors on the public `/donate` page.
+- Direct link from admin panel to `/donate`.
 
 
