@@ -13,6 +13,8 @@ import {
   IconFile,
   IconX,
   IconQrCode,
+  IconTrash,
+  IconShield,
 } from '@/components/Icons';
 
 type TherapistStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
@@ -35,6 +37,18 @@ interface TherapistItem {
   createdAt: string;
 }
 
+interface AdminUserItem {
+  id: string;
+  email: string;
+  fullName: string;
+  role: 'client' | 'therapist' | 'admin';
+  avatarUrl?: string | null;
+  timezone: string;
+  createdAt: string;
+  therapistStatus?: string | null;
+  licenseNumber?: string | null;
+}
+
 const DEMO_THERAPISTS: TherapistItem[] = [
   {
     userId: 'demo-1',
@@ -51,7 +65,7 @@ const DEMO_THERAPISTS: TherapistItem[] = [
     languages: ['English', 'Hindi'],
     status: 'pending',
     adminNote: null,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(), // 4h ago
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
   },
   {
     userId: 'demo-2',
@@ -68,7 +82,7 @@ const DEMO_THERAPISTS: TherapistItem[] = [
     languages: ['English', 'Spanish'],
     status: 'pending',
     adminNote: null,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(), // 18h ago
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
   },
   {
     userId: 'demo-3',
@@ -113,6 +127,9 @@ interface PlatformSettings {
 }
 
 export default function AdminPage() {
+  const [mainSection, setMainSection] = useState<'therapists' | 'users' | 'upi'>('therapists');
+
+  // Therapists state
   const [loading, setLoading] = useState(true);
   const [therapists, setTherapists] = useState<TherapistItem[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | TherapistStatus>('pending');
@@ -122,6 +139,21 @@ export default function AdminPage() {
   const [adminNoteInput, setAdminNoteInput] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  // Users state
+  const [usersList, setUsersList] = useState<AdminUserItem[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'client' | 'therapist' | 'admin'>('all');
+
+  // Delete user state
+  const [userToDelete, setUserToDelete] = useState<{
+    id: string;
+    fullName: string;
+    email: string;
+    role?: string;
+  } | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   // UPI Settings state
   const [upiSettings, setUpiSettings] = useState<PlatformSettings>({
@@ -135,8 +167,24 @@ export default function AdminPage() {
 
   useEffect(() => {
     loadTherapists();
+    loadUsers();
     loadUpiSettings();
   }, []);
+
+  async function loadUsers() {
+    setUsersLoading(true);
+    try {
+      const res = await fetch('/api/admin/users');
+      if (res.ok) {
+        const data = await res.json();
+        setUsersList(data.users || []);
+      }
+    } catch {
+      // fallback
+    } finally {
+      setUsersLoading(false);
+    }
+  }
 
   async function loadUpiSettings() {
     try {
@@ -272,6 +320,28 @@ export default function AdminPage() {
     });
   }, [therapists, activeTab, searchQuery]);
 
+  const filteredUsers = useMemo(() => {
+    return usersList.filter((u) => {
+      const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
+      const q = userSearchQuery.toLowerCase();
+      const matchesSearch =
+        !q ||
+        u.fullName.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        (u.licenseNumber && u.licenseNumber.toLowerCase().includes(q));
+      return matchesRole && matchesSearch;
+    });
+  }, [usersList, userRoleFilter, userSearchQuery]);
+
+  const userCounts = useMemo(() => {
+    return {
+      all: usersList.length,
+      clients: usersList.filter((u) => u.role === 'client').length,
+      therapists: usersList.filter((u) => u.role === 'therapist').length,
+      admins: usersList.filter((u) => u.role === 'admin').length,
+    };
+  }, [usersList]);
+
   function openActionModal(therapist: TherapistItem, action: 'approve' | 'reject' | 'suspend') {
     setSelectedTherapist(therapist);
     setModalAction(action);
@@ -288,7 +358,7 @@ export default function AdminPage() {
     if (!selectedTherapist || !modalAction) return;
 
     if (modalAction === 'reject' && !adminNoteInput.trim()) {
-      setToast({ text: 'Please enter a note explaining the rejection reason to the therapist.', type: 'error' });
+      setToast({ text: 'Please enter a note explaining the rejection reason.', type: 'error' });
       return;
     }
 
@@ -307,9 +377,10 @@ export default function AdminPage() {
             adminNote: adminNoteInput,
           }),
         });
+
         if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error ?? 'Failed to update therapist status');
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to update therapist status');
         }
       }
 
@@ -322,31 +393,91 @@ export default function AdminPage() {
       );
 
       setToast({
-        text: `Therapist ${selectedTherapist.fullName} status updated to ${newStatus}.`,
+        text: `Therapist ${selectedTherapist.fullName} has been ${newStatus}.`,
         type: 'success',
       });
+      setTimeout(() => setToast(null), 3500);
       setSelectedTherapist(null);
       setModalAction(null);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Action failed';
+      const msg = err instanceof Error ? err.message : 'Error updating status';
       setToast({ text: msg, type: 'error' });
+      setTimeout(() => setToast(null), 4000);
     } finally {
       setActionLoading(false);
+    }
+  }
+
+  async function handleConfirmDeleteUser() {
+    if (!userToDelete) return;
+    setIsDeletingUser(true);
+    try {
+      const res = await fetch('/api/admin/users/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userToDelete.id }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete user.');
+      }
+
+      setToast({
+        text: `User ${userToDelete.fullName || userToDelete.email} was permanently deleted.`,
+        type: 'success',
+      });
+      setTimeout(() => setToast(null), 3500);
+
+      // Remove from both lists
+      setUsersList((prev) => prev.filter((u) => u.id !== userToDelete.id));
+      setTherapists((prev) => prev.filter((t) => t.userId !== userToDelete.id));
+      setUserToDelete(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Deletion failed';
+      setToast({ text: msg, type: 'error' });
       setTimeout(() => setToast(null), 4000);
+    } finally {
+      setIsDeletingUser(false);
     }
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8f9fa', color: '#1e293b' }}>
-      {/* Nav */}
+    <div style={{ minHeight: '100vh', background: '#f8f9fa' }}>
+      {/* Toast Alert */}
+      {toast && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '1.5rem',
+            right: '1.5rem',
+            zIndex: 9999,
+            background: toast.type === 'success' ? '#059669' : '#dc2626',
+            color: '#ffffff',
+            padding: '0.75rem 1.25rem',
+            borderRadius: '0.65rem',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          {toast.type === 'success' ? <IconCheck size={18} /> : <IconAlertCircle size={18} />}
+          <span>{toast.text}</span>
+        </div>
+      )}
+
+      {/* Admin Navbar */}
       <nav
         style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 50,
           borderBottom: '1px solid #e2e8f0',
           background: 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(16px)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
         }}
       >
         <div
@@ -410,310 +541,701 @@ export default function AdminPage() {
             Admin <span style={{ color: '#3b82f6' }}>Control Centre</span>
           </h1>
           <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
-            Manage therapist verification, platform donation settings, and real-time configuration.
+            Manage therapist applications, delete user accounts, and configure UPI donation settings.
           </p>
         </div>
 
-        {/* UPI / Donation Settings Panel */}
-        <div style={{
-          background: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: '1rem',
-          padding: '1.75rem 2rem',
-          marginBottom: '2.5rem',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-            <IconQrCode size={22} color="#7c3aed" />
-            <div>
-              <h2 style={{ fontWeight: 700, fontSize: '1.1rem', color: '#1e293b', margin: 0 }}>Donation UPI Settings</h2>
-              <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b', marginTop: '0.1rem' }}>Changes here instantly update the /donate page for all users.</p>
-            </div>
-          </div>
-
-          {upiLoading ? (
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>
-              <div className="spinner" style={{ width: 20, height: 20 }} />
-              Loading settings...
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
-                  UPI ID <span style={{ color: '#dc2626' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  className="input"
-                  value={upiSettings.upi_id}
-                  onChange={(e) => setUpiSettings((s) => ({ ...s, upi_id: e.target.value }))}
-                  placeholder="yourname@upi"
-                  style={{ fontFamily: 'monospace', fontSize: '0.95rem' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
-                  UPI Account Name
-                </label>
-                <input
-                  type="text"
-                  className="input"
-                  value={upiSettings.upi_name}
-                  onChange={(e) => setUpiSettings((s) => ({ ...s, upi_name: e.target.value }))}
-                  placeholder="Foundation or personal name shown on UPI"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
-                  QR Code Image URL
-                </label>
-                <input
-                  type="url"
-                  className="input"
-                  value={upiSettings.upi_qr_url}
-                  onChange={(e) => setUpiSettings((s) => ({ ...s, upi_qr_url: e.target.value }))}
-                  placeholder="https://... (paste a public image link)"
-                />
-                <p style={{ margin: '0.3rem 0 0', fontSize: '0.76rem', color: '#94a3b8' }}>
-                  Upload your QR to Supabase Storage or any CDN and paste the public URL here.
-                </p>
-              </div>
-
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
-                  Donation Page Message
-                </label>
-                <textarea
-                  className="input"
-                  rows={2}
-                  value={upiSettings.donation_note}
-                  onChange={(e) => setUpiSettings((s) => ({ ...s, donation_note: e.target.value }))}
-                  placeholder="Short message displayed on the /donate page..."
-                />
-              </div>
-
-              <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={saveUpiSettings}
-                  disabled={upiSaving}
-                  className="btn-primary"
-                  style={{ padding: '0.65rem 1.75rem', fontWeight: 600 }}
-                >
-                  {upiSaving ? 'Saving...' : '💾 Save UPI Settings'}
-                </button>
-                {upiSettings.upi_qr_url && (
-                  <a
-                    href={upiSettings.upi_qr_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: '#7c3aed', fontSize: '0.85rem', fontWeight: 500 }}
-                  >
-                    Preview QR ↗
-                  </a>
-                )}
-                <a
-                  href="/donate"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: '#2563eb', fontSize: '0.85rem', fontWeight: 500 }}
-                >
-                  Preview Donate Page ↗
-                </a>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Therapist Verification Header */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.3rem', color: '#1e293b' }}>
-            Therapist <span style={{ color: '#3b82f6' }}>Verification Queue</span>
-          </h2>
-          <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
-            Review submitted credentials, verify active professional clinical licenses, and manage therapist admission.
-          </p>
-        </div>
-
-        {/* Toast Alert */}
-        {toast && (
-          <div
+        {/* Top-Level Section Tabs */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '0.75rem',
+            marginBottom: '2rem',
+            flexWrap: 'wrap',
+            borderBottom: '1px solid #e2e8f0',
+            paddingBottom: '0.75rem',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setMainSection('therapists')}
             style={{
-              position: 'fixed',
-              bottom: '2rem',
-              right: '2rem',
-              zIndex: 100,
-              padding: '1rem 1.5rem',
-              borderRadius: '0.75rem',
-              background: toast.type === 'success' ? '#065f46' : '#991b1b',
-              border: `1px solid ${toast.type === 'success' ? '#059669' : '#dc2626'}`,
-              color: '#ffffff',
+              padding: '0.6rem 1.25rem',
+              borderRadius: '0.55rem',
               fontSize: '0.9rem',
-              fontWeight: 500,
-              boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)',
+              fontWeight: 600,
+              cursor: 'pointer',
+              border: mainSection === 'therapists' ? 'none' : '1px solid #e2e8f0',
+              background: mainSection === 'therapists' ? '#2563eb' : '#ffffff',
+              color: mainSection === 'therapists' ? '#ffffff' : '#64748b',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              boxShadow: mainSection === 'therapists' ? '0 2px 8px rgba(37, 99, 235, 0.2)' : 'none',
             }}
           >
-            {toast.text}
+            <span>Therapist Applications</span>
+            {counts.pending > 0 && (
+              <span
+                style={{
+                  background: mainSection === 'therapists' ? '#ffffff' : '#ef4444',
+                  color: mainSection === 'therapists' ? '#2563eb' : '#ffffff',
+                  borderRadius: '1rem',
+                  padding: '0.1rem 0.5rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                }}
+              >
+                {counts.pending}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMainSection('users');
+              loadUsers();
+            }}
+            style={{
+              padding: '0.6rem 1.25rem',
+              borderRadius: '0.55rem',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              border: mainSection === 'users' ? 'none' : '1px solid #e2e8f0',
+              background: mainSection === 'users' ? '#2563eb' : '#ffffff',
+              color: mainSection === 'users' ? '#ffffff' : '#64748b',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              boxShadow: mainSection === 'users' ? '0 2px 8px rgba(37, 99, 235, 0.2)' : 'none',
+            }}
+          >
+            <IconUser size={16} />
+            <span>All Users &amp; Deletion</span>
+            {usersList.length > 0 && (
+              <span
+                style={{
+                  background: mainSection === 'users' ? 'rgba(255,255,255,0.25)' : '#f1f5f9',
+                  color: mainSection === 'users' ? '#ffffff' : '#475569',
+                  borderRadius: '1rem',
+                  padding: '0.1rem 0.5rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                }}
+              >
+                {usersList.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMainSection('upi')}
+            style={{
+              padding: '0.6rem 1.25rem',
+              borderRadius: '0.55rem',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              border: mainSection === 'upi' ? 'none' : '1px solid #e2e8f0',
+              background: mainSection === 'upi' ? '#2563eb' : '#ffffff',
+              color: mainSection === 'upi' ? '#ffffff' : '#64748b',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              boxShadow: mainSection === 'upi' ? '0 2px 8px rgba(37, 99, 235, 0.2)' : 'none',
+            }}
+          >
+            <IconQrCode size={16} />
+            <span>Donation UPI Settings</span>
+          </button>
+        </div>
+
+        {/* ── SECTION 1: THERAPIST VERIFICATION ────────────────────────── */}
+        {mainSection === 'therapists' && (
+          <div>
+            {/* Stat Cards */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1.25rem',
+                marginBottom: '2rem',
+              }}
+            >
+              <StatCard
+                label="Pending Review"
+                count={counts.pending}
+                color="#b45309"
+                bg="#fef3c7"
+                border="#fde68a"
+                icon={<IconClock size={20} color="#b45309" />}
+              />
+              <StatCard
+                label="Approved"
+                count={counts.approved}
+                color="#15803d"
+                bg="#dcfce7"
+                border="#bbf7d0"
+                icon={<IconCheck size={20} color="#15803d" />}
+              />
+              <StatCard
+                label="Rejected"
+                count={counts.rejected}
+                color="#dc2626"
+                bg="#fee2e2"
+                border="#fecaca"
+                icon={<IconAlertCircle size={20} color="#dc2626" />}
+              />
+              <StatCard
+                label="Suspended"
+                count={counts.suspended}
+                color="#64748b"
+                bg="#f1f5f9"
+                border="#e2e8f0"
+                icon={<IconUser size={20} color="#64748b" />}
+              />
+            </div>
+
+            {/* Filter Tabs & Search */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '1rem',
+                marginBottom: '1.5rem',
+              }}
+            >
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {(['pending', 'approved', 'rejected', 'suspended', 'all'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setActiveTab(tab)}
+                    style={{
+                      padding: '0.45rem 1rem',
+                      borderRadius: '0.5rem',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: activeTab === tab ? '1px solid #3b82f6' : '1px solid #e2e8f0',
+                      background: activeTab === tab ? '#eff6ff' : '#ffffff',
+                      color: activeTab === tab ? '#2563eb' : '#64748b',
+                      textTransform: 'capitalize',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {tab === 'all' ? 'All Applicants' : tab}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ position: 'relative', minWidth: 260 }}>
+                <input
+                  type="text"
+                  placeholder="Search by name, email, license..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="input"
+                  style={{
+                    paddingLeft: '2.25rem',
+                    fontSize: '0.85rem',
+                    borderRadius: '0.5rem',
+                    width: '100%',
+                  }}
+                />
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: '0.75rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#94a3b8',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <IconSearch size={16} />
+                </span>
+              </div>
+            </div>
+
+            {/* Therapists Queue */}
+            {loading ? (
+              <div style={{ padding: '4rem', textAlign: 'center' }}>
+                <div className="spinner" style={{ width: 36, height: 36 }} />
+              </div>
+            ) : filteredTherapists.length === 0 ? (
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '0.85rem',
+                  padding: '3.5rem 2rem',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ marginBottom: '0.5rem', color: '#64748b', display: 'flex', justifyContent: 'center' }}>
+                  <IconSearch size={40} color="#94a3b8" />
+                </div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem', color: '#1e293b' }}>
+                  No therapists found
+                </h3>
+                <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
+                  No applicants match the current filter or search criteria.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {filteredTherapists.map((therapist) => (
+                  <TherapistQueueCard
+                    key={therapist.userId}
+                    therapist={therapist}
+                    onApprove={() => openActionModal(therapist, 'approve')}
+                    onReject={() => openActionModal(therapist, 'reject')}
+                    onSuspend={() => openActionModal(therapist, 'suspend')}
+                    onDelete={() =>
+                      setUserToDelete({
+                        id: therapist.userId,
+                        fullName: therapist.fullName,
+                        email: therapist.email,
+                        role: 'therapist',
+                      })
+                    }
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Stat Cards */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '1rem',
-            marginBottom: '2rem',
-          }}
-        >
-          <StatCard
-            label="Pending Review"
-            count={counts.pending}
-            color="#b45309"
-            bg="#fef3c7"
-            border="#fde68a"
-            icon={<IconClock size={24} color="#b45309" />}
-          />
-          <StatCard
-            label="Approved & Active"
-            count={counts.approved}
-            color="#15803d"
-            bg="#dcfce7"
-            border="#bbf7d0"
-            icon={<IconCheck size={24} color="#15803d" />}
-          />
-          <StatCard
-            label="Changes Requested"
-            count={counts.rejected}
-            color="#dc2626"
-            bg="#fee2e2"
-            border="#fecaca"
-            icon={<IconAlertCircle size={24} color="#dc2626" />}
-          />
-          <StatCard
-            label="Total Applicants"
-            count={counts.all}
-            color="#1d4ed8"
-            bg="#eff6ff"
-            border="#bfdbfe"
-            icon={<IconUser size={24} color="#1d4ed8" />}
-          />
-        </div>
+        {/* ── SECTION 2: ALL USERS & DELETION ─────────────────────────── */}
+        {mainSection === 'users' && (
+          <div>
+            {/* User Stat Cards */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1.25rem',
+                marginBottom: '2rem',
+              }}
+            >
+              <StatCard
+                label="Total Registered Users"
+                count={userCounts.all}
+                color="#2563eb"
+                bg="#eff6ff"
+                border="#bfdbfe"
+                icon={<IconUser size={20} color="#2563eb" />}
+              />
+              <StatCard
+                label="Clients (Seeking Help)"
+                count={userCounts.clients}
+                color="#059669"
+                bg="#ecfdf5"
+                border="#a7f3d0"
+                icon={<IconCheck size={20} color="#059669" />}
+              />
+              <StatCard
+                label="Therapists (Clinicians)"
+                count={userCounts.therapists}
+                color="#7c3aed"
+                bg="#f5f3ff"
+                border="#ddd6fe"
+                icon={<IconIdCard size={20} color="#7c3aed" />}
+              />
+              <StatCard
+                label="Platform Admins"
+                count={userCounts.admins}
+                color="#d97706"
+                bg="#fef3c7"
+                border="#fde68a"
+                icon={<IconShield size={20} color="#d97706" />}
+              />
+            </div>
 
-        {/* Filter Controls Bar */}
-        <div
-          style={{
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '0.85rem',
-            padding: '1rem 1.25rem',
-            marginBottom: '1.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '1rem',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-          }}
-        >
-          {/* Tabs */}
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {(['pending', 'approved', 'rejected', 'all'] as const).map((tab) => {
-              const active = activeTab === tab;
-              const count = tab === 'all' ? counts.all : counts[tab];
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveTab(tab)}
-                  style={{
-                    padding: '0.45rem 1rem',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    background: active ? '#3b82f6' : '#f1f5f9',
-                    border: active ? '1px solid #3b82f6' : '1px solid #e2e8f0',
-                    color: active ? '#ffffff' : '#64748b',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.45rem',
-                  }}
-                >
-                  <span style={{ textTransform: 'capitalize' }}>{tab}</span>
-                  <span
+            {/* Filter and Search Bar */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '1rem',
+                marginBottom: '1.5rem',
+              }}
+            >
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {(['all', 'client', 'therapist', 'admin'] as const).map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => setUserRoleFilter(role)}
                     style={{
-                      background: active ? 'rgba(255,255,255,0.25)' : '#e2e8f0',
-                      color: active ? '#ffffff' : '#475569',
-                      borderRadius: '1rem',
-                      padding: '0.05rem 0.45rem',
-                      fontSize: '0.725rem',
-                      fontWeight: 700,
+                      padding: '0.45rem 1rem',
+                      borderRadius: '0.5rem',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: userRoleFilter === role ? '1px solid #3b82f6' : '1px solid #e2e8f0',
+                      background: userRoleFilter === role ? '#eff6ff' : '#ffffff',
+                      color: userRoleFilter === role ? '#2563eb' : '#64748b',
+                      textTransform: 'capitalize',
+                      transition: 'all 0.15s',
                     }}
                   >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                    {role === 'all' ? 'All Roles' : `${role}s`}
+                  </button>
+                ))}
+              </div>
 
-          {/* Search box */}
-          <div style={{ minWidth: 260 }}>
-            <input
-              type="text"
-              className="input"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, email, license, specialty..."
-              style={{ padding: '0.45rem 0.9rem', fontSize: '0.85rem' }}
-            />
-          </div>
-        </div>
+              <div style={{ position: 'relative', minWidth: 280 }}>
+                <input
+                  type="text"
+                  placeholder="Search user by name or email..."
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  className="input"
+                  style={{
+                    paddingLeft: '2.25rem',
+                    fontSize: '0.85rem',
+                    borderRadius: '0.5rem',
+                    width: '100%',
+                  }}
+                />
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: '0.75rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#94a3b8',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <IconSearch size={16} />
+                </span>
+              </div>
+            </div>
 
-        {/* Therapist Queue Table / Cards */}
-        {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem 0' }}>
-            <div className="spinner" style={{ width: 36, height: 36 }} />
+            {/* Users Table */}
+            {usersLoading ? (
+              <div style={{ padding: '4rem', textAlign: 'center' }}>
+                <div className="spinner" style={{ width: 36, height: 36 }} />
+              </div>
+            ) : filteredUsers.length === 0 ? (
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '0.85rem',
+                  padding: '3.5rem 2rem',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ marginBottom: '0.5rem', color: '#64748b', display: 'flex', justifyContent: 'center' }}>
+                  <IconUser size={40} color="#94a3b8" />
+                </div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem', color: '#1e293b' }}>
+                  No users found
+                </h3>
+                <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
+                  No accounts matched your search or role filter.
+                </p>
+              </div>
+            ) : (
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '1rem',
+                  overflow: 'hidden',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                }}
+              >
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                          User Profile
+                        </th>
+                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                          Role &amp; Status
+                        </th>
+                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                          Timezone
+                        </th>
+                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                          Registered
+                        </th>
+                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>
+                          Admin Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUsers.map((u) => {
+                        const roleColor = {
+                          client: { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
+                          therapist: { bg: '#f5f3ff', text: '#6d28d9', border: '#ddd6fe' },
+                          admin: { bg: '#fef3c7', text: '#b45309', border: '#fde68a' },
+                        }[u.role] || { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' };
+
+                        return (
+                          <tr
+                            key={u.id}
+                            style={{
+                              borderBottom: '1px solid #f1f5f9',
+                              transition: 'background 0.15s',
+                            }}
+                          >
+                            {/* Profile */}
+                            <td style={{ padding: '1rem 1.25rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div
+                                  style={{
+                                    width: 38,
+                                    height: 38,
+                                    borderRadius: '50%',
+                                    background: '#e0e7ff',
+                                    color: '#4338ca',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontWeight: 700,
+                                    fontSize: '0.9rem',
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {u.fullName.charAt(0).toUpperCase() || 'U'}
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.9rem' }}>
+                                    {u.fullName}
+                                  </div>
+                                  <div style={{ color: '#64748b', fontSize: '0.8rem' }}>{u.email}</div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Role */}
+                            <td style={{ padding: '1rem 1.25rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                <span
+                                  style={{
+                                    background: roleColor.bg,
+                                    color: roleColor.text,
+                                    border: `1px solid ${roleColor.border}`,
+                                    padding: '0.2rem 0.6rem',
+                                    borderRadius: '1rem',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    textTransform: 'capitalize',
+                                  }}
+                                >
+                                  {u.role}
+                                </span>
+                                {u.therapistStatus && (
+                                  <span
+                                    style={{
+                                      fontSize: '0.7rem',
+                                      padding: '0.15rem 0.45rem',
+                                      borderRadius: '0.35rem',
+                                      background: u.therapistStatus === 'approved' ? '#ecfdf5' : '#fff7ed',
+                                      color: u.therapistStatus === 'approved' ? '#059669' : '#c2410c',
+                                      fontWeight: 600,
+                                      textTransform: 'capitalize',
+                                    }}
+                                  >
+                                    {u.therapistStatus}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Timezone */}
+                            <td style={{ padding: '1rem 1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
+                              {u.timezone}
+                            </td>
+
+                            {/* Registered */}
+                            <td style={{ padding: '1rem 1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
+                              {new Date(u.createdAt).toLocaleDateString(undefined, {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </td>
+
+                            {/* Delete Action */}
+                            <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setUserToDelete({
+                                    id: u.id,
+                                    fullName: u.fullName,
+                                    email: u.email,
+                                    role: u.role,
+                                  })
+                                }
+                                style={{
+                                  padding: '0.4rem 0.85rem',
+                                  borderRadius: '0.45rem',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 600,
+                                  background: '#fef2f2',
+                                  border: '1px solid #fecaca',
+                                  color: '#dc2626',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  transition: 'all 0.15s',
+                                }}
+                                title="Delete User Account"
+                              >
+                                <IconTrash size={14} color="#dc2626" />
+                                <span>Delete User</span>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
-        ) : filteredTherapists.length === 0 ? (
+        )}
+
+        {/* ── SECTION 3: UPI / DONATION SETTINGS ───────────────────────── */}
+        {mainSection === 'upi' && (
           <div
             style={{
               background: '#ffffff',
               border: '1px solid #e2e8f0',
-              borderRadius: '0.85rem',
-              padding: '3.5rem 2rem',
-              textAlign: 'center',
+              borderRadius: '1rem',
+              padding: '1.75rem 2rem',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
             }}
           >
-            <div style={{ marginBottom: '0.5rem', color: '#64748b', display: 'flex', justifyContent: 'center' }}>
-              <IconSearch size={40} color="#94a3b8" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+              <IconQrCode size={22} color="#7c3aed" />
+              <div>
+                <h2 style={{ fontWeight: 700, fontSize: '1.1rem', color: '#1e293b', margin: 0 }}>
+                  Donation UPI Settings
+                </h2>
+                <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b', marginTop: '0.1rem' }}>
+                  Changes here instantly update the /donate page across the whole application.
+                </p>
+              </div>
             </div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem', color: '#1e293b' }}>
-              No therapists found
-            </h3>
-            <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
-              No applicants match the current filter or search criteria.
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {filteredTherapists.map((therapist) => (
-              <TherapistQueueCard
-                key={therapist.userId}
-                therapist={therapist}
-                onApprove={() => openActionModal(therapist, 'approve')}
-                onReject={() => openActionModal(therapist, 'reject')}
-                onSuspend={() => openActionModal(therapist, 'suspend')}
-              />
-            ))}
+
+            {upiLoading ? (
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>
+                <div className="spinner" style={{ width: 20, height: 20 }} />
+                Loading settings...
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
+                    UPI ID <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={upiSettings.upi_id}
+                    onChange={(e) => setUpiSettings((s) => ({ ...s, upi_id: e.target.value }))}
+                    placeholder="yourname@upi"
+                    style={{ fontFamily: 'monospace', fontSize: '0.95rem' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
+                    UPI Account Name
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={upiSettings.upi_name}
+                    onChange={(e) => setUpiSettings((s) => ({ ...s, upi_name: e.target.value }))}
+                    placeholder="Foundation or personal name shown on UPI"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
+                    QR Code Image URL
+                  </label>
+                  <input
+                    type="url"
+                    className="input"
+                    value={upiSettings.upi_qr_url}
+                    onChange={(e) => setUpiSettings((s) => ({ ...s, upi_qr_url: e.target.value }))}
+                    placeholder="https://... (paste a public image link)"
+                  />
+                  <p style={{ margin: '0.3rem 0 0', fontSize: '0.76rem', color: '#94a3b8' }}>
+                    Upload your QR to Supabase Storage or any CDN and paste the public URL here.
+                  </p>
+                </div>
+
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
+                    Donation Page Message
+                  </label>
+                  <textarea
+                    className="input"
+                    rows={2}
+                    value={upiSettings.donation_note}
+                    onChange={(e) => setUpiSettings((s) => ({ ...s, donation_note: e.target.value }))}
+                    placeholder="Short message displayed on the /donate page..."
+                  />
+                </div>
+
+                <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={saveUpiSettings}
+                    disabled={upiSaving}
+                    className="btn-primary"
+                    style={{ padding: '0.65rem 1.75rem', fontWeight: 600 }}
+                  >
+                    {upiSaving ? 'Saving...' : '💾 Save UPI Settings'}
+                  </button>
+                  {upiSettings.upi_qr_url && (
+                    <a
+                      href={upiSettings.upi_qr_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: '#7c3aed', fontSize: '0.85rem', fontWeight: 500 }}
+                    >
+                      Preview QR ↗
+                    </a>
+                  )}
+                  <a
+                    href="/donate"
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: '#2563eb', fontSize: '0.85rem', fontWeight: 500 }}
+                  >
+                    View Public Donate Page ↗
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Verification Action Modal */}
+        {/* ── MODAL: VERIFY / REJECT / SUSPEND THERAPIST ───────────────── */}
         {modalAction && selectedTherapist && (
           <div
             style={{
@@ -759,38 +1281,36 @@ export default function AdminPage() {
                     setSelectedTherapist(null);
                     setModalAction(null);
                   }}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#64748b',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
                 >
-                  <IconX size={20} color="#64748b" />
+                  <IconX size={20} />
                 </button>
               </div>
 
-              <div
-                style={{
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '0.75rem',
-                  padding: '1rem',
-                  marginBottom: '1.25rem',
-                }}
-              >
-                <div style={{ fontWeight: 600, color: '#1e293b' }}>{selectedTherapist.fullName}</div>
-                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{selectedTherapist.email}</div>
-                <div style={{ fontSize: '0.825rem', color: '#3b82f6', marginTop: '0.35rem', fontWeight: 500 }}>
-                  License: {selectedTherapist.licenseNumber || 'Not submitted'}
-                </div>
-              </div>
+              <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+                {modalAction === 'approve' && (
+                  <>
+                    Approve <strong>{selectedTherapist.fullName}</strong>. They will immediately appear
+                    available for client matching.
+                  </>
+                )}
+                {modalAction === 'reject' && (
+                  <>
+                    Decline <strong>{selectedTherapist.fullName}</strong>&apos;s application. Provide a
+                    reason below so they can correct it.
+                  </>
+                )}
+                {modalAction === 'suspend' && (
+                  <>
+                    Temporarily suspend <strong>{selectedTherapist.fullName}</strong>. They will be taken
+                    offline from the matching pool.
+                  </>
+                )}
+              </p>
 
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: '#64748b', marginBottom: '0.5rem', fontWeight: 500 }}>
-                  {modalAction === 'reject' ? 'Rejection Reason (Visible to Therapist) *' : 'Reviewer Note (Optional)'}
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
+                  {modalAction === 'reject' ? 'Reason for Rejection *' : 'Internal Admin Note'}
                 </label>
                 <textarea
                   className="input"
@@ -845,6 +1365,98 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {/* ── MODAL: PERMANENTLY DELETE USER ──────────────────────────── */}
+        {userToDelete && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1000,
+              background: 'rgba(0,0,0,0.6)',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '1.5rem',
+            }}
+          >
+            <div
+              className="fade-in-up"
+              style={{
+                maxWidth: 480,
+                width: '100%',
+                borderRadius: '1.25rem',
+                padding: '2rem',
+                border: '1px solid #fecaca',
+                background: '#ffffff',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+                textAlign: 'center',
+              }}
+            >
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: '50%',
+                  background: '#fee2e2',
+                  color: '#dc2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 1.25rem',
+                }}
+              >
+                <IconTrash size={28} color="#dc2626" />
+              </div>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.5rem' }}>
+                Permanently Delete User?
+              </h3>
+              <p style={{ color: '#64748b', fontSize: '0.9rem', lineHeight: 1.5, marginBottom: '1.5rem' }}>
+                Are you sure you want to delete <strong>{userToDelete.fullName}</strong> (
+                <code>{userToDelete.email}</code>)? This will immediately wipe their account, profiles, and
+                consultation history from the database and authentication system. This action{' '}
+                <strong>cannot be undone</strong>.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setUserToDelete(null)}
+                  disabled={isDeletingUser}
+                  className="btn-ghost"
+                  style={{ padding: '0.65rem 1.5rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteUser}
+                  disabled={isDeletingUser}
+                  style={{
+                    padding: '0.65rem 1.75rem',
+                    borderRadius: '0.6rem',
+                    fontWeight: 600,
+                    background: '#dc2626',
+                    color: '#fff',
+                    border: 'none',
+                    cursor: isDeletingUser ? 'not-allowed' : 'pointer',
+                    opacity: isDeletingUser ? 0.7 : 1,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  {isDeletingUser ? (
+                    <span className="spinner" style={{ width: 16, height: 16 }} />
+                  ) : (
+                    <IconTrash size={16} color="#fff" />
+                  )}
+                  <span>{isDeletingUser ? 'Deleting...' : 'Yes, Delete User'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
@@ -890,11 +1502,13 @@ function TherapistQueueCard({
   onApprove,
   onReject,
   onSuspend,
+  onDelete,
 }: {
   therapist: TherapistItem;
   onApprove: () => void;
   onReject: () => void;
   onSuspend: () => void;
+  onDelete: () => void;
 }) {
   const statusBadge = {
     pending: { label: 'Pending Verification', bg: '#fef3c7', text: '#b45309', border: '#fde68a' },
@@ -1095,6 +1709,30 @@ function TherapistQueueCard({
             Suspend
           </button>
         )}
+
+        <button
+          type="button"
+          onClick={onDelete}
+          style={{
+            padding: '0.45rem 1rem',
+            borderRadius: '0.5rem',
+            fontSize: '0.8rem',
+            fontWeight: 500,
+            background: '#ffffff',
+            border: '1px solid #fecaca',
+            color: '#dc2626',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.35rem',
+            marginTop: '0.25rem',
+          }}
+          title="Delete account"
+        >
+          <IconTrash size={13} color="#dc2626" />
+          <span>Delete Account</span>
+        </button>
       </div>
     </div>
   );

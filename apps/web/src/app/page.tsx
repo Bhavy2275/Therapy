@@ -68,14 +68,17 @@ export default function LandingPage() {
             <span className="gradient-text">Jarwis</span>{' '}
             <span style={{ color: '#1e293b' }}>Help Me!</span>
           </span>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <Link href="/donate" className="btn-secondary" style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }}>
               Support Mission
             </Link>
-            <Link href="/login" className="btn-ghost" style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}>
-              Sign In
+            <Link href="/login/client" className="btn-ghost" style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }}>
+              Client Login
             </Link>
-            <Link href="/register" className="btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}>
+            <Link href="/login/therapist" className="btn-ghost" style={{ padding: '0.45rem 1rem', fontSize: '0.85rem', color: '#6366f1' }}>
+              Therapist Portal
+            </Link>
+            <Link href="/register" className="btn-primary" style={{ padding: '0.45rem 1.15rem', fontSize: '0.85rem' }}>
               Get Started
             </Link>
           </div>
@@ -110,10 +113,10 @@ export default function LandingPage() {
 
         <div className="fade-in-up delay-3" style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
           <Link href="/register?role=client" className="btn-primary" style={{ fontSize: '1rem', padding: '0.875rem 2.25rem' }}>
-            Find a Therapist →
+            I need help
           </Link>
           <Link href="/register?role=therapist" className="btn-ghost" style={{ fontSize: '1rem', padding: '0.875rem 2.25rem' }}>
-            Join as a Therapist
+            I&apos;m here to help
           </Link>
         </div>
 
@@ -196,13 +199,17 @@ export default function LandingPage() {
         alignItems: 'center',
         gap: '0.75rem',
       }}>
-        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
           <Link href="/donate" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: 600 }}>
             Support Mission
           </Link>
           <span>•</span>
-          <Link href="/login" style={{ color: '#64748b', textDecoration: 'none' }}>
-            Sign In
+          <Link href="/login/client" style={{ color: '#64748b', textDecoration: 'none' }}>
+            Client Login
+          </Link>
+          <span>•</span>
+          <Link href="/login/therapist" style={{ color: '#64748b', textDecoration: 'none' }}>
+            Therapist Portal
           </Link>
           <span>•</span>
           <Link href="/register" style={{ color: '#64748b', textDecoration: 'none' }}>

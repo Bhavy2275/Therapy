@@ -4,25 +4,19 @@ import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { IconHeart, IconClipboard } from '@/components/Icons';
+import { IconHeart, IconShield } from '@/components/Icons';
 
-function LoginForm() {
+function ClientLoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const redirectTo = params.get('redirectTo') ?? '/dashboard';
-  const roleParam = params.get('role');
 
-  const [activePortal, setActivePortal] = useState<'client' | 'therapist'>(
-    roleParam === 'therapist' ? 'therapist' : 'client',
-  );
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [roleMismatch, setRoleMismatch] = useState<boolean>(false);
   const [loading, setLoading] = useState(false);
   const [honeypot, setHoneypot] = useState('');
-
-  const isClient = activePortal === 'client';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,27 +39,18 @@ function LoginForm() {
         return;
       }
 
-      // Check role strictly against the chosen portal
+      // Check role strictly: this portal is for clients
       const { data: userRow } = await supabase
         .from('users')
         .select('role')
         .eq('id', authData.user.id)
         .single();
 
-      const userRole = userRow?.role;
-
-      if (isClient && userRole === 'therapist') {
+      if (userRow?.role === 'therapist') {
+        // Sign out immediately to preserve role separation
         await supabase.auth.signOut();
         setRoleMismatch(true);
         setError('This account is registered as a Therapist. Please sign in via the Therapist Portal.');
-        setLoading(false);
-        return;
-      }
-
-      if (!isClient && userRole === 'client') {
-        await supabase.auth.signOut();
-        setRoleMismatch(true);
-        setError('This account is registered as a Client seeking therapy. Please sign in via the Client Portal.');
         setLoading(false);
         return;
       }
@@ -77,12 +62,6 @@ function LoginForm() {
       setError(msg);
       setLoading(false);
     }
-  }
-
-  function handleSwitchPortal(portal: 'client' | 'therapist') {
-    setActivePortal(portal);
-    setError(null);
-    setRoleMismatch(false);
   }
 
   return (
@@ -99,91 +78,49 @@ function LoginForm() {
       }}
     >
       {/* Header */}
-      <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
+      <div style={{ marginBottom: '1.75rem', textAlign: 'center' }}>
         <Link href="/" style={{ textDecoration: 'none' }}>
           <span style={{ fontSize: '1.45rem', fontWeight: 800 }}>
             <span className="gradient-text">Jarwis</span>{' '}
             <span style={{ color: '#1e293b' }}>Help Me!</span>
           </span>
         </Link>
+
+        {/* Portal Identifier Badge */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              color: '#1d4ed8',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              padding: '0.3rem 0.85rem',
+              borderRadius: '2rem',
+            }}
+          >
+            <IconHeart size={14} color="#2563eb" />
+            <span>Client Portal · I Need Help</span>
+          </span>
+        </div>
+
         <h1
           style={{
             fontSize: '1.5rem',
             fontWeight: 700,
-            marginTop: '1.25rem',
+            marginTop: '1rem',
             marginBottom: '0.3rem',
             color: '#1e293b',
           }}
         >
-          {isClient ? 'Client Sign In' : 'Therapist Sign In'}
+          Welcome Back
         </h1>
         <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
-          {isClient
-            ? 'Sign in to request sessions and receive confidential support'
-            : 'Sign in to access your clinical room, availability & patients'}
+          Sign in to connect with therapists and access sessions
         </p>
-      </div>
-
-      {/* Role Portal Switcher Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          background: '#f1f5f9',
-          borderRadius: '0.65rem',
-          padding: '0.25rem',
-          marginBottom: '1.5rem',
-          border: '1px solid #e2e8f0',
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => handleSwitchPortal('client')}
-          style={{
-            flex: 1,
-            padding: '0.55rem',
-            borderRadius: '0.45rem',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            transition: 'all 0.2s',
-            background: isClient ? '#2563eb' : 'transparent',
-            color: isClient ? '#ffffff' : '#64748b',
-            boxShadow: isClient ? '0 2px 8px rgba(37, 99, 235, 0.25)' : 'none',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.35rem',
-          }}
-        >
-          <IconHeart size={14} color={isClient ? '#ffffff' : '#64748b'} />
-          <span>I need help</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleSwitchPortal('therapist')}
-          style={{
-            flex: 1,
-            padding: '0.55rem',
-            borderRadius: '0.45rem',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            transition: 'all 0.2s',
-            background: !isClient ? '#6366f1' : 'transparent',
-            color: !isClient ? '#ffffff' : '#64748b',
-            boxShadow: !isClient ? '0 2px 8px rgba(99, 102, 241, 0.25)' : 'none',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.35rem',
-          }}
-        >
-          <IconClipboard size={14} color={!isClient ? '#ffffff' : '#64748b'} />
-          <span>I&apos;m here to help</span>
-        </button>
       </div>
 
       {/* Form */}
@@ -201,7 +138,7 @@ function LoginForm() {
 
         <div>
           <label
-            htmlFor="login-email"
+            htmlFor="client-email"
             style={{
               fontSize: '0.85rem',
               color: '#374151',
@@ -210,13 +147,13 @@ function LoginForm() {
               fontWeight: 600,
             }}
           >
-            {isClient ? 'Email Address' : 'Professional Email'}
+            Email Address
           </label>
           <input
-            id="login-email"
+            id="client-email"
             type="email"
             className={`input${error ? ' input-error' : ''}`}
-            placeholder={isClient ? 'you@example.com' : 'therapist@example.com'}
+            placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -226,7 +163,7 @@ function LoginForm() {
 
         <div>
           <label
-            htmlFor="login-password"
+            htmlFor="client-password"
             style={{
               fontSize: '0.85rem',
               color: '#374151',
@@ -238,7 +175,7 @@ function LoginForm() {
             Password
           </label>
           <input
-            id="login-password"
+            id="client-password"
             type="password"
             className={`input${error ? ' input-error' : ''}`}
             placeholder="••••••••"
@@ -264,9 +201,8 @@ function LoginForm() {
             <p style={{ margin: 0 }}>{error}</p>
             {roleMismatch && (
               <div style={{ marginTop: '0.6rem' }}>
-                <button
-                  type="button"
-                  onClick={() => handleSwitchPortal(isClient ? 'therapist' : 'client')}
+                <Link
+                  href="/login/therapist"
                   className="btn-primary"
                   style={{
                     display: 'inline-flex',
@@ -274,15 +210,14 @@ function LoginForm() {
                     gap: '0.4rem',
                     fontSize: '0.8rem',
                     padding: '0.4rem 0.9rem',
-                    background: isClient ? '#6366f1' : '#2563eb',
-                    border: 'none',
+                    background: '#6366f1',
+                    textDecoration: 'none',
                     borderRadius: '0.4rem',
-                    cursor: 'pointer',
                   }}
                 >
-                  <span>Switch to {isClient ? 'Therapist Portal' : 'Client Portal'}</span>
+                  <span>Go to Therapist Portal Login</span>
                   <span>→</span>
-                </button>
+                </Link>
               </div>
             )}
           </div>
@@ -297,20 +232,16 @@ function LoginForm() {
             padding: '0.75rem',
             fontSize: '0.95rem',
             fontWeight: 600,
-            background: isClient ? '#2563eb' : '#6366f1',
+            background: '#2563eb',
             borderRadius: '0.5rem',
           }}
         >
           {loading ? <span className="spinner" style={{ width: 18, height: 18 }} /> : null}
-          {loading
-            ? 'Signing in…'
-            : isClient
-            ? 'Sign In as Client'
-            : 'Sign In as Therapist'}
+          {loading ? 'Signing in…' : 'Sign In as Client'}
         </button>
       </form>
 
-      {/* Switcher Footer */}
+      {/* Switcher to Therapist Login */}
       <div
         style={{
           marginTop: '1.75rem',
@@ -325,31 +256,20 @@ function LoginForm() {
         <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748b' }}>
           Don&apos;t have an account?{' '}
           <Link
-            href={isClient ? '/register?role=client' : '/register?role=therapist'}
-            style={{
-              color: isClient ? '#2563eb' : '#6366f1',
-              textDecoration: 'none',
-              fontWeight: 600,
-            }}
+            href="/register?role=client"
+            style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600 }}
           >
-            {isClient ? 'Sign up to get help' : 'Apply as a therapist'}
+            Sign up to get help
           </Link>
         </p>
 
         <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b' }}>
-          Direct portal links:{' '}
-          <Link
-            href="/login/client"
-            style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600 }}
-          >
-            Client Portal
-          </Link>{' '}
-          •{' '}
+          Are you a therapist?{' '}
           <Link
             href="/login/therapist"
             style={{ color: '#6366f1', textDecoration: 'none', fontWeight: 600 }}
           >
-            Therapist Portal
+            Sign in to Therapist Portal →
           </Link>
         </p>
       </div>
@@ -357,7 +277,7 @@ function LoginForm() {
   );
 }
 
-export default function LoginPage() {
+export default function ClientLoginPage() {
   return (
     <Suspense
       fallback={
@@ -375,7 +295,7 @@ export default function LoginPage() {
         </div>
       }
     >
-      <LoginForm />
+      <ClientLoginForm />
     </Suspense>
   );
 }
