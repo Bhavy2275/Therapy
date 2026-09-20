@@ -156,8 +156,23 @@ export default function TherapistProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // 1. File size check (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      setMessage({ type: 'error', text: 'Document file size must be less than 10MB' });
+      setMessage({ type: 'error', text: 'Document file size must be less than 10MB.' });
+      return;
+    }
+
+    // 2. Strict file extension & MIME type validation
+    const allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+    const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
+
+    if (!allowedExtensions.includes(fileExt) || (file.type && !allowedMimeTypes.includes(file.type))) {
+      setMessage({
+        type: 'error',
+        text: 'Invalid file format. Only PDF, JPG, PNG, or WEBP documents are allowed.',
+      });
       return;
     }
 
@@ -166,7 +181,6 @@ export default function TherapistProfilePage() {
 
     try {
       const supabase = createClient();
-      const fileExt = file.name.split('.').pop();
       const storagePath = `${userId || 'demo'}/${Date.now()}-license.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage

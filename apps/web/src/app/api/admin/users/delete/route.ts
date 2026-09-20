@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { rateLimit, getClientIp } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,10 +10,19 @@ export const dynamic = 'force-dynamic';
  * Body: { userId: string }
  *
  * Permanently deletes a user from public tables and Supabase Auth.
- * Admin-only operation.
+ * Admin-only operation with strict rate limiting.
  */
 export async function POST(req: Request) {
   try {
+    const ip = getClientIp(req);
+    const rl = rateLimit(`admin-delete:${ip}`, { limit: 10, windowMs: 60_000 });
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
+    }
+
     const serverClient = await createClient();
     const {
       data: { user: adminUser },

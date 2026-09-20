@@ -50,26 +50,38 @@ async function bootstrap() {
   );
 
   // ── 4. Strict CORS ────────────────────────────────────────────────────────
+  const allowedOrigins = [
+    process.env.WEB_URL,
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+  ].filter(Boolean) as string[];
+
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
       // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
 
-      if (
-        origin.includes('localhost') ||
-        origin.includes('127.0.0.1') ||
+      const isAllowed =
+        allowedOrigins.includes(origin) ||
         origin.endsWith('.vercel.app') ||
-        (process.env.WEB_URL && origin === process.env.WEB_URL)
-      ) {
+        (process.env.NODE_ENV !== 'production' &&
+          (origin.includes('localhost') || origin.includes('127.0.0.1')));
+
+      if (isAllowed) {
         return callback(null, true);
       }
 
-      // Allow in staging / preview
-      return callback(null, true);
+      logger.warn(`Blocked CORS request from unauthorized origin: ${origin}`);
+      return callback(new Error('Not allowed by CORS policy'));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   });
 
   // ── 5. Global API Prefix ──────────────────────────────────────────────────

@@ -1,9 +1,19 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { rateLimit, getClientIp } from '@/lib/rate-limit';
 
 export async function POST(req: Request) {
   try {
+    const ip = getClientIp(req);
+    const rl = rateLimit(`matching-request:${ip}`, { limit: 15, windowMs: 60_000 });
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: 'Too many session requests. Please wait a minute.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
+    }
+
     const serverClient = await createClient();
     const {
       data: { user },
