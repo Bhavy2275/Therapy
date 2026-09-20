@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import TherapistPresenceBar from '@/components/TherapistPresenceBar';
 import IncomingOfferModal from '@/components/IncomingOfferModal';
 import ClientSosButton from '@/components/ClientSosButton';
+import SignOutButton from '@/components/SignOutButton';
 import {
   IconBolt,
   IconCalendar,
@@ -182,11 +183,7 @@ export default async function DashboardPage() {
             >
               <IconSettings size={18} color="#64748b" />
             </Link>
-            <form action="/api/auth/logout" method="POST">
-              <button type="submit" className="btn-ghost" style={{ padding: '0.45rem 1.1rem', fontSize: '0.875rem' }}>
-                Sign Out
-              </button>
-            </form>
+            <SignOutButton style={{ padding: '0.45rem 1.1rem', fontSize: '0.875rem' }} />
           </div>
         </div>
       </nav>

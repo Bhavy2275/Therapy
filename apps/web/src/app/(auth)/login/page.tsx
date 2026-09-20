@@ -17,7 +17,7 @@ function LoginForm() {
   );
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(params.get('error'));
   const [roleMismatch, setRoleMismatch] = useState<boolean>(false);
   const [loading, setLoading] = useState(false);
   const [honeypot, setHoneypot] = useState('');

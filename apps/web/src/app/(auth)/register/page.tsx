@@ -59,7 +59,7 @@ function RegisterForm() {
     if (role === 'therapist') {
       metadata.therapist_type = therapistType;
     }
-    const { error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -73,19 +73,25 @@ function RegisterForm() {
       return;
     }
 
-    // Supabase sends a confirmation email by default.
-    // Show success state; redirect after confirmation.
+    // If session is active immediately (e.g. email confirmation disabled), go to dashboard
+    if (authData?.session) {
+      router.push('/dashboard');
+      router.refresh();
+      return;
+    }
+
+    // Otherwise, show confirmation email notice
     setSuccess(true);
     setLoading(false);
   }
 
   if (success) {
     return (
-      <div className="glass fade-in-up" style={{ width: '100%', maxWidth: 420, borderRadius: '1.25rem', padding: '2.5rem', textAlign: 'center' }}>
-        <div style={{ marginBottom: '1rem', color: '#3b82f6' }}><IconUser size={44} /></div>
-        <h1 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.5rem', color: '#1e293b' }}>Check your email</h1>
-        <p style={{ color: '#475569', fontSize: '0.9rem', lineHeight: 1.6 }}>
-          We sent a confirmation link to <strong style={{ color: '#1e293b' }}>{email}</strong>.
+      <div className="glass fade-in-up" style={{ width: '100%', maxWidth: 420, borderRadius: '1.25rem', padding: '2.5rem', textAlign: 'center', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))' }}>
+        <div style={{ marginBottom: '1rem', color: 'hsl(var(--accent))' }}><IconUser size={44} /></div>
+        <h1 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Check your email</h1>
+        <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.9rem', lineHeight: 1.6 }}>
+          We sent a confirmation link to <strong style={{ color: 'hsl(var(--foreground))' }}>{email}</strong>.
           Click it to activate your account.
         </p>
         <Link href="/login" className="btn-ghost" style={{ display: 'block', textAlign: 'center', marginTop: '1.5rem', textDecoration: 'none' }}>

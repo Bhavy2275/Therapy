@@ -4,7 +4,6 @@ import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-  Play,
   Zap,
   Video,
   CheckCircle,
@@ -198,13 +197,6 @@ export default function LandingPage() {
             >
               I&apos;m here to help
             </Link>
-            <button
-              type="button"
-              aria-label="Play video demo"
-              className="h-11 w-11 rounded-full border-0 bg-background shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:bg-background/80 flex items-center justify-center transition-transform hover:scale-105"
-            >
-              <Play className="h-4 w-4 fill-foreground text-foreground translate-x-0.5" />
-            </button>
           </motion.div>
 
 

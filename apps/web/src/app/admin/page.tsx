@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import SignOutButton from '@/components/SignOutButton';
 import {
   IconClock,
   IconCheck,
@@ -569,15 +570,10 @@ export default function AdminPage() {
             >
               Dashboard View
             </Link>
-            <form action="/api/auth/logout" method="POST">
-              <button
-                type="submit"
-                className="btn-ghost"
-                style={{ padding: '0.45rem 1rem', fontSize: '0.85rem', color: '#64748b' }}
-              >
-                Sign Out
-              </button>
-            </form>
+            <SignOutButton
+              className="btn-ghost"
+              style={{ padding: '0.45rem 1rem', fontSize: '0.85rem', color: '#64748b' }}
+            />
           </div>
         </div>
       </nav>

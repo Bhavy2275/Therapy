@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import SignOutButton from '@/components/SignOutButton';
 import {
   IconSettings,
   IconUser,
@@ -256,11 +257,12 @@ export default function SettingsPage() {
           <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1.25rem' }}>
             You will be signed out of your account on this device.
           </p>
-          <form action="/api/auth/logout" method="POST">
-            <button type="submit" className="btn-ghost" style={{ padding: '0.6rem 1.5rem', color: '#dc2626', borderColor: '#fca5a5' }}>
-              Sign Out
-            </button>
-          </form>
+          <SignOutButton
+            className="btn-ghost"
+            style={{ padding: '0.6rem 1.5rem', color: '#dc2626', borderColor: '#fca5a5' }}
+          >
+            Sign Out
+          </SignOutButton>
         </div>
 
       </main>

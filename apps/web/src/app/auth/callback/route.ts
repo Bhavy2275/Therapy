@@ -3,9 +3,21 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
-  const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/dashboard';
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get('code');
+  const next = requestUrl.searchParams.get('next') ?? '/dashboard';
+  const errorParam = requestUrl.searchParams.get('error_description') || requestUrl.searchParams.get('error');
+
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const origin = forwardedHost
+    ? `${requestUrl.protocol}//${forwardedHost}`
+    : requestUrl.origin;
+
+  if (errorParam) {
+    return NextResponse.redirect(
+      `${origin}/login?error=${encodeURIComponent(errorParam)}`,
+    );
+  }
 
   if (code) {
     const cookieStore = await cookies();
@@ -23,7 +35,7 @@ export async function GET(request: Request) {
                 cookieStore.set(name, value, options),
               );
             } catch {
-              // Server component write fallback
+              // Ignore if called in read-only environment
             }
           },
         },
@@ -32,10 +44,19 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      const response = NextResponse.redirect(`${origin}${next}`);
+      response.headers.set(
+        'Cache-Control',
+        'no-store, no-cache, must-revalidate, proxy-revalidate',
+      );
+      return response;
     }
+
+    return NextResponse.redirect(
+      `${origin}/login?error=${encodeURIComponent(error.message)}`,
+    );
   }
 
-  // Return user to dashboard or login
-  return NextResponse.redirect(`${origin}${next}`);
+  // No code provided; redirect to login
+  return NextResponse.redirect(`${origin}/login`);
 }

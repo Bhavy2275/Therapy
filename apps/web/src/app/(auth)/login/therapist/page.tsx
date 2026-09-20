@@ -4,7 +4,7 @@ import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { IconClipboard, IconShield } from '@/components/Icons';
+import { IconClipboard } from '@/components/Icons';
 
 function TherapistLoginForm() {
   const router = useRouter();
@@ -13,7 +13,7 @@ function TherapistLoginForm() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(params.get('error'));
   const [roleMismatch, setRoleMismatch] = useState<boolean>(false);
   const [loading, setLoading] = useState(false);
   const [honeypot, setHoneypot] = useState('');
@@ -72,17 +72,17 @@ function TherapistLoginForm() {
         maxWidth: 440,
         borderRadius: '1.25rem',
         padding: '2.5rem',
-        border: '1px solid #e2e8f0',
-        background: '#ffffff',
-        boxShadow: '0 10px 35px rgba(0,0,0,0.06)',
+        border: '1px solid hsl(var(--border))',
+        background: 'hsl(var(--background))',
+        boxShadow: '0 10px 40px rgba(0,0,0,0.08)',
       }}
     >
       {/* Header */}
       <div style={{ marginBottom: '1.75rem', textAlign: 'center' }}>
         <Link href="/" style={{ textDecoration: 'none' }}>
-          <span style={{ fontSize: '1.45rem', fontWeight: 800 }}>
+          <span style={{ fontSize: '1.45rem', fontWeight: 800, fontFamily: 'var(--font-body)' }}>
             <span className="gradient-text">Jarwis</span>{' '}
-            <span style={{ color: '#1e293b' }}>Help Me!</span>
+            <span style={{ color: 'hsl(var(--foreground))' }}>Help Me!</span>
           </span>
         </Link>
 
@@ -93,16 +93,16 @@ function TherapistLoginForm() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.4rem',
-              background: '#f5f3ff',
-              border: '1px solid #ddd6fe',
-              color: '#6d28d9',
+              background: 'hsl(var(--secondary))',
+              border: '1px solid hsl(var(--border))',
+              color: 'hsl(var(--accent))',
               fontSize: '0.8rem',
-              fontWeight: 700,
+              fontWeight: 600,
               padding: '0.3rem 0.85rem',
               borderRadius: '2rem',
             }}
           >
-            <IconClipboard size={14} color="#7c3aed" />
+            <IconClipboard size={14} color="hsl(var(--accent))" />
             <span>Therapist Portal · I&apos;m Here to Help</span>
           </span>
         </div>
@@ -113,12 +113,12 @@ function TherapistLoginForm() {
             fontWeight: 700,
             marginTop: '1rem',
             marginBottom: '0.3rem',
-            color: '#1e293b',
+            color: 'hsl(var(--foreground))',
           }}
         >
           Clinical Sign In
         </h1>
-        <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
+        <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.875rem' }}>
           Manage your schedule, availability & consultations
         </p>
       </div>
@@ -141,7 +141,7 @@ function TherapistLoginForm() {
             htmlFor="therapist-email"
             style={{
               fontSize: '0.85rem',
-              color: '#374151',
+              color: 'hsl(var(--foreground))',
               display: 'block',
               marginBottom: '0.4rem',
               fontWeight: 600,
@@ -166,7 +166,7 @@ function TherapistLoginForm() {
             htmlFor="therapist-password"
             style={{
               fontSize: '0.85rem',
-              color: '#374151',
+              color: 'hsl(var(--foreground))',
               display: 'block',
               marginBottom: '0.4rem',
               fontWeight: 600,
@@ -210,7 +210,8 @@ function TherapistLoginForm() {
                     gap: '0.4rem',
                     fontSize: '0.8rem',
                     padding: '0.4rem 0.9rem',
-                    background: '#2563eb',
+                    background: 'hsl(var(--foreground))',
+                    color: 'hsl(var(--background))',
                     textDecoration: 'none',
                     borderRadius: '0.4rem',
                   }}
@@ -232,7 +233,8 @@ function TherapistLoginForm() {
             padding: '0.75rem',
             fontSize: '0.95rem',
             fontWeight: 600,
-            background: '#6366f1',
+            background: 'hsl(var(--accent))',
+            color: 'hsl(var(--accent-foreground))',
             borderRadius: '0.5rem',
           }}
         >
@@ -246,28 +248,28 @@ function TherapistLoginForm() {
         style={{
           marginTop: '1.75rem',
           paddingTop: '1.25rem',
-          borderTop: '1px solid #f1f5f9',
+          borderTop: '1px solid hsl(var(--border))',
           textAlign: 'center',
           display: 'flex',
           flexDirection: 'column',
           gap: '0.6rem',
         }}
       >
-        <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748b' }}>
+        <p style={{ margin: 0, fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>
           New practitioner?{' '}
           <Link
             href="/register?role=therapist"
-            style={{ color: '#6366f1', textDecoration: 'none', fontWeight: 600 }}
+            style={{ color: 'hsl(var(--accent))', textDecoration: 'none', fontWeight: 600 }}
           >
             Apply to join our network
           </Link>
         </p>
 
-        <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b' }}>
+        <p style={{ margin: 0, fontSize: '0.825rem', color: 'hsl(var(--muted-foreground))' }}>
           Looking for therapy?{' '}
           <Link
             href="/login/client"
-            style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600 }}
+            style={{ color: 'hsl(var(--accent))', textDecoration: 'none', fontWeight: 600 }}
           >
             Sign in to Client Portal →
           </Link>
