@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -15,6 +15,7 @@ import {
   IconQrCode,
   IconTrash,
   IconShield,
+  IconCopy,
 } from '@/components/Icons';
 
 type TherapistStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
@@ -164,6 +165,9 @@ export default function AdminPage() {
   });
   const [upiLoading, setUpiLoading] = useState(true);
   const [upiSaving, setUpiSaving] = useState(false);
+  const [qrUploading, setQrUploading] = useState(false);
+  const [copiedUpi, setCopiedUpi] = useState(false);
+  const qrFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadTherapists();
@@ -202,6 +206,50 @@ export default function AdminPage() {
       // use defaults
     } finally {
       setUpiLoading(false);
+    }
+  }
+
+  async function handleQrUpload(file: File) {
+    if (!file) return;
+
+    const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/svg+xml'];
+    if (!allowed.includes(file.type.toLowerCase())) {
+      setToast({ text: 'Please select a valid image (PNG, JPG, JPEG, WEBP, or SVG).', type: 'error' });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setToast({ text: 'File size exceeds limit of 5MB.', type: 'error' });
+      return;
+    }
+
+    setQrUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/admin/platform-settings/upload-qr', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to upload QR code.');
+      }
+
+      setUpiSettings((s) => ({ ...s, upi_qr_url: data.url }));
+      setToast({ text: 'QR code uploaded and saved successfully!', type: 'success' });
+      setTimeout(() => setToast(null), 3500);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'QR upload failed';
+      setToast({ text: msg, type: 'error' });
+      setTimeout(() => setToast(null), 4000);
+    } finally {
+      setQrUploading(false);
+      if (qrFileInputRef.current) {
+        qrFileInputRef.current.value = '';
+      }
     }
   }
 
@@ -1121,114 +1169,522 @@ export default function AdminPage() {
             style={{
               background: '#ffffff',
               border: '1px solid #e2e8f0',
-              borderRadius: '1rem',
-              padding: '1.75rem 2rem',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+              borderRadius: '1.25rem',
+              padding: '2rem',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-              <IconQrCode size={22} color="#7c3aed" />
-              <div>
-                <h2 style={{ fontWeight: 700, fontSize: '1.1rem', color: '#1e293b', margin: 0 }}>
-                  Donation UPI Settings
-                </h2>
-                <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b', marginTop: '0.1rem' }}>
-                  Changes here instantly update the /donate page across the whole application.
-                </p>
+            {/* Section Header */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '1rem',
+                borderBottom: '1px solid #f1f5f9',
+                paddingBottom: '1.5rem',
+                marginBottom: '2rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: '0.75rem',
+                    background: '#f5f3ff',
+                    border: '1px solid #ddd6fe',
+                    color: '#7c3aed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <IconQrCode size={24} color="#7c3aed" />
+                </div>
+                <div>
+                  <h2 style={{ fontWeight: 800, fontSize: '1.25rem', color: '#1e293b', margin: 0 }}>
+                    Donation UPI &amp; QR Code Management
+                  </h2>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>
+                    Upload your custom UPI QR code and configure the UPI ID displayed on the public <code style={{ background: '#f1f5f9', padding: '0.1rem 0.4rem', borderRadius: '0.25rem', color: '#2563eb' }}>/donate</code> page.
+                  </p>
+                </div>
               </div>
+
+              <Link
+                href="/donate"
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  color: '#2563eb',
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  textDecoration: 'none',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <span>View Public /donate Page</span>
+                <span>↗</span>
+              </Link>
             </div>
 
             {upiLoading ? (
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>
-                <div className="spinner" style={{ width: 20, height: 20 }} />
-                Loading settings...
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', color: '#94a3b8', fontSize: '0.9rem', padding: '3rem 0', justifyContent: 'center' }}>
+                <div className="spinner" style={{ width: 24, height: 24 }} />
+                <span>Loading current donation settings...</span>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
-                    UPI ID <span style={{ color: '#dc2626' }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="input"
-                    value={upiSettings.upi_id}
-                    onChange={(e) => setUpiSettings((s) => ({ ...s, upi_id: e.target.value }))}
-                    placeholder="yourname@upi"
-                    style={{ fontFamily: 'monospace', fontSize: '0.95rem' }}
-                  />
-                </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '2.5rem', alignItems: 'start' }}>
+                {/* Left Column: Form & Upload Controls */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  {/* UPI ID */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.4rem' }}>
+                      UPI ID (VPA) <span style={{ color: '#dc2626' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={upiSettings.upi_id}
+                      onChange={(e) => setUpiSettings((s) => ({ ...s, upi_id: e.target.value.trim() }))}
+                      placeholder="e.g. yourname@upi or merchant@oksbi"
+                      style={{ fontFamily: 'monospace', fontSize: '0.95rem', width: '100%' }}
+                    />
+                    <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>
+                      Donors will copy this identifier to pay directly inside GPay, PhonePe, Paytm, or BHIM.
+                    </p>
+                  </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
-                    UPI Account Name
-                  </label>
-                  <input
-                    type="text"
-                    className="input"
-                    value={upiSettings.upi_name}
-                    onChange={(e) => setUpiSettings((s) => ({ ...s, upi_name: e.target.value }))}
-                    placeholder="Foundation or personal name shown on UPI"
-                  />
-                </div>
+                  {/* UPI Account Name */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.4rem' }}>
+                      Beneficiary Account Name
+                    </label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={upiSettings.upi_name}
+                      onChange={(e) => setUpiSettings((s) => ({ ...s, upi_name: e.target.value }))}
+                      placeholder="e.g. Jarwis Foundation or Bhavy Soni"
+                      style={{ width: '100%' }}
+                    />
+                    <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>
+                      Official name linked to your bank account or merchant VPA.
+                    </p>
+                  </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
-                    QR Code Image URL
-                  </label>
-                  <input
-                    type="url"
-                    className="input"
-                    value={upiSettings.upi_qr_url}
-                    onChange={(e) => setUpiSettings((s) => ({ ...s, upi_qr_url: e.target.value }))}
-                    placeholder="https://... (paste a public image link)"
-                  />
-                  <p style={{ margin: '0.3rem 0 0', fontSize: '0.76rem', color: '#94a3b8' }}>
-                    Upload your QR to Supabase Storage or any CDN and paste the public URL here.
-                  </p>
-                </div>
+                  {/* QR Code Upload Zone */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                      <label style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1e293b' }}>
+                        Donation QR Code Image
+                      </label>
+                      {upiSettings.upi_qr_url && (
+                        <button
+                          type="button"
+                          onClick={() => setUpiSettings((s) => ({ ...s, upi_qr_url: '' }))}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#dc2626',
+                            fontSize: '0.78rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                          }}
+                        >
+                          <IconTrash size={12} color="#dc2626" />
+                          <span>Remove QR</span>
+                        </button>
+                      )}
+                    </div>
 
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
-                    Donation Page Message
-                  </label>
-                  <textarea
-                    className="input"
-                    rows={2}
-                    value={upiSettings.donation_note}
-                    onChange={(e) => setUpiSettings((s) => ({ ...s, donation_note: e.target.value }))}
-                    placeholder="Short message displayed on the /donate page..."
-                  />
-                </div>
+                    {/* Hidden file input */}
+                    <input
+                      ref={qrFileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleQrUpload(file);
+                      }}
+                    />
 
-                <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    onClick={saveUpiSettings}
-                    disabled={upiSaving}
-                    className="btn-primary"
-                    style={{ padding: '0.65rem 1.75rem', fontWeight: 600 }}
-                  >
-                    {upiSaving ? 'Saving...' : '💾 Save UPI Settings'}
-                  </button>
-                  {upiSettings.upi_qr_url && (
-                    <a
-                      href={upiSettings.upi_qr_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ color: '#7c3aed', fontSize: '0.85rem', fontWeight: 500 }}
+                    {/* Upload Card / Dropzone */}
+                    <div
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) handleQrUpload(file);
+                      }}
+                      style={{
+                        border: upiSettings.upi_qr_url ? '1px solid #e2e8f0' : '2px dashed #cbd5e1',
+                        borderRadius: '0.85rem',
+                        padding: '1.5rem',
+                        background: upiSettings.upi_qr_url ? '#f8fafc' : '#fcfdff',
+                        textAlign: 'center',
+                        transition: 'all 0.2s ease',
+                      }}
                     >
-                      Preview QR ↗
-                    </a>
-                  )}
-                  <a
-                    href="/donate"
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: '#2563eb', fontSize: '0.85rem', fontWeight: 500 }}
+                      {qrUploading ? (
+                        <div style={{ padding: '1.5rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                          <div className="spinner" style={{ width: 32, height: 32 }} />
+                          <span style={{ fontSize: '0.875rem', color: '#4338ca', fontWeight: 600 }}>
+                            Uploading and securing QR code...
+                          </span>
+                        </div>
+                      ) : upiSettings.upi_qr_url ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', textAlign: 'left' }}>
+                          <div
+                            style={{
+                              width: 100,
+                              height: 100,
+                              borderRadius: '0.65rem',
+                              border: '1px solid #e2e8f0',
+                              background: '#ffffff',
+                              padding: '0.35rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={upiSettings.upi_qr_url}
+                              alt="Uploaded UPI QR"
+                              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                            />
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#15803d', fontSize: '0.8rem', fontWeight: 700 }}>
+                              <IconCheck size={14} color="#15803d" />
+                              <span>Custom QR Code Active</span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748b' }}>
+                              Your uploaded QR code is linked to the donation gateway.
+                            </p>
+                            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.25rem' }}>
+                              <button
+                                type="button"
+                                onClick={() => qrFileInputRef.current?.click()}
+                                style={{
+                                  padding: '0.35rem 0.85rem',
+                                  borderRadius: '0.45rem',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 600,
+                                  background: '#eff6ff',
+                                  border: '1px solid #bfdbfe',
+                                  color: '#1d4ed8',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Replace QR Image
+                              </button>
+                              <a
+                                href={upiSettings.upi_qr_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                  padding: '0.35rem 0.85rem',
+                                  borderRadius: '0.45rem',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 600,
+                                  background: '#ffffff',
+                                  border: '1px solid #e2e8f0',
+                                  color: '#475569',
+                                  textDecoration: 'none',
+                                }}
+                              >
+                                View Full Size ↗
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          onClick={() => qrFileInputRef.current?.click()}
+                          style={{ cursor: 'pointer', padding: '1rem 0' }}
+                        >
+                          <div
+                            style={{
+                              width: 50,
+                              height: 50,
+                              borderRadius: '50%',
+                              background: '#eff6ff',
+                              color: '#2563eb',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              margin: '0 auto 0.85rem',
+                            }}
+                          >
+                            <IconQrCode size={26} color="#2563eb" />
+                          </div>
+                          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1e293b', marginBottom: '0.25rem' }}>
+                            Click to browse or drag &amp; drop QR Code
+                          </div>
+                          <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b', maxWidth: 300, marginInline: 'auto' }}>
+                            Upload an image of your GPay, PhonePe, Paytm, or BHIM QR code (PNG, JPG, WEBP, up to 5MB).
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Secondary Direct URL Option */}
+                    <div style={{ marginTop: '0.75rem' }}>
+                      <details style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                        <summary style={{ cursor: 'pointer', color: '#4f46e5', fontWeight: 600 }}>
+                          Or enter direct image URL instead
+                        </summary>
+                        <div style={{ marginTop: '0.5rem' }}>
+                          <input
+                            type="url"
+                            className="input"
+                            value={upiSettings.upi_qr_url}
+                            onChange={(e) => setUpiSettings((s) => ({ ...s, upi_qr_url: e.target.value.trim() }))}
+                            placeholder="https://example.com/qr-code.png"
+                            style={{ width: '100%', fontSize: '0.85rem' }}
+                          />
+                        </div>
+                      </details>
+                    </div>
+                  </div>
+
+                  {/* Donation Page Note */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.4rem' }}>
+                      Donation Page Note
+                    </label>
+                    <textarea
+                      className="input"
+                      rows={3}
+                      value={upiSettings.donation_note}
+                      onChange={(e) => setUpiSettings((s) => ({ ...s, donation_note: e.target.value }))}
+                      placeholder="Message displayed to donors explaining how voluntary contributions support free therapy..."
+                      style={{ width: '100%', fontSize: '0.85rem' }}
+                    />
+                  </div>
+
+                  {/* Save Button */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '0.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={saveUpiSettings}
+                      disabled={upiSaving}
+                      className="btn-primary"
+                      style={{
+                        padding: '0.75rem 2rem',
+                        fontWeight: 700,
+                        fontSize: '0.95rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      {upiSaving ? (
+                        <>
+                          <div className="spinner" style={{ width: 16, height: 16 }} />
+                          <span>Saving Changes...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>💾 Save UPI Settings</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right Column: Live Visitor Preview */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Live /donate Page Preview
+                    </div>
+                    <span
+                      style={{
+                        background: '#ecfdf5',
+                        border: '1px solid #bbf7d0',
+                        color: '#166534',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '0.35rem',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      Real-time
+                    </span>
+                  </div>
+
+                  {/* Simulated Card from /donate */}
+                  <div
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '1.25rem',
+                      padding: '2rem',
+                      textAlign: 'center',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.06)',
+                    }}
                   >
-                    View Public Donate Page ↗
-                  </a>
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        background: '#f0fdf4',
+                        border: '1px solid #bbf7d0',
+                        color: '#15803d',
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: '2rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        marginBottom: '1.5rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      <IconCheck size={12} color="#15803d" />
+                      UPI Instant Payment · Zero Fees
+                    </div>
+
+                    {/* QR Code Container */}
+                    <div style={{ marginBottom: '1.5rem' }}>
+                      {upiSettings.upi_qr_url ? (
+                        <div>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={upiSettings.upi_qr_url}
+                            alt="Donation QR Code Preview"
+                            style={{
+                              width: 200,
+                              height: 200,
+                              objectFit: 'contain',
+                              borderRadius: '0.85rem',
+                              border: '1px solid #e2e8f0',
+                              padding: '0.5rem',
+                              background: '#ffffff',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
+                            }}
+                          />
+                          <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.65rem' }}>
+                            Scan with any UPI app — GPay, PhonePe, Paytm, BHIM
+                          </p>
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            width: 200,
+                            height: 200,
+                            margin: '0 auto',
+                            borderRadius: '0.85rem',
+                            border: '2px dashed #cbd5e1',
+                            background: '#f8fafc',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#94a3b8',
+                            fontSize: '0.825rem',
+                            gap: '0.5rem',
+                          }}
+                        >
+                          <IconQrCode size={36} color="#cbd5e1" />
+                          <span>No QR uploaded yet</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* UPI ID Pill */}
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '0.75rem',
+                        padding: '0.75rem 1.15rem',
+                        marginBottom: '1.25rem',
+                        maxWidth: '100%',
+                      }}
+                    >
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          UPI ID
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                          {upiSettings.upi_id || 'yourname@upi'}
+                        </div>
+                        {upiSettings.upi_name && (
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.1rem' }}>
+                            {upiSettings.upi_name}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (upiSettings.upi_id) {
+                            navigator.clipboard.writeText(upiSettings.upi_id).catch(() => {});
+                            setCopiedUpi(true);
+                            setTimeout(() => setCopiedUpi(false), 2000);
+                          }
+                        }}
+                        style={{
+                          background: copiedUpi ? '#f0fdf4' : '#eff6ff',
+                          border: `1px solid ${copiedUpi ? '#bbf7d0' : '#bfdbfe'}`,
+                          color: copiedUpi ? '#15803d' : '#1d4ed8',
+                          borderRadius: '0.45rem',
+                          padding: '0.4rem 0.75rem',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {copiedUpi ? <IconCheck size={13} color="#15803d" /> : <IconCopy size={13} color="#1d4ed8" />}
+                        <span>{copiedUpi ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+
+                    {/* Note Preview */}
+                    {upiSettings.donation_note && (
+                      <div
+                        style={{
+                          background: '#f8fafc',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '0.65rem',
+                          padding: '0.85rem 1rem',
+                          fontSize: '0.8rem',
+                          color: '#475569',
+                          lineHeight: 1.5,
+                          textAlign: 'left',
+                        }}
+                      >
+                        <strong>Note shown to donors:</strong>
+                        <p style={{ margin: '0.25rem 0 0' }}>{upiSettings.donation_note}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
