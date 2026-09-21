@@ -99,6 +99,7 @@ export default function SchedulePage() {
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   // Booking state
+  const [mobileDayIdx, setMobileDayIdx] = useState(0);
   const [pickedSlot, setPickedSlot] = useState<{ date: Date; startTime: string } | null>(null);
   const [sessionType, setSessionType] = useState<SessionType>('video');
   const [booking, setBooking] = useState(false);
@@ -211,7 +212,14 @@ export default function SchedulePage() {
     const [h, m] = startTime.split(':').map(Number);
     const dt = new Date(date);
     dt.setHours(h, m, 0, 0);
-    return bookedISOs.has(dt.toISOString()) || dt <= new Date();
+    return bookedISOs.has(dt.toISOString());
+  }
+
+  function isSlotPast(date: Date, startTime: string): boolean {
+    const [h, m] = startTime.split(':').map(Number);
+    const dt = new Date(date);
+    dt.setHours(h, m, 0, 0);
+    return dt.getTime() <= Date.now();
   }
 
   // Slots keyed by dayOfWeek
@@ -229,32 +237,31 @@ export default function SchedulePage() {
       {/* Nav */}
       <nav style={{
         position: 'sticky', top: 0, zIndex: 50,
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-        background: 'rgba(10, 15, 30, 0.85)',
+        borderBottom: '1px solid #e2e8f0',
+        background: 'rgba(255, 255, 255, 0.95)',
         backdropFilter: 'blur(16px)',
       }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '4rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <Link href="/dashboard" className="btn-ghost" style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '3.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <Link href="/dashboard" className="btn-ghost" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
               ← Dashboard
             </Link>
-            <span style={{ fontSize: '1.15rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '1.05rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#0f172a' }}>
               <IconCalendar size={18} color="#3b82f6" />
               <span><span className="gradient-text">Schedule</span> a Session</span>
             </span>
           </div>
 
-
           {/* Step breadcrumb */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: '#94a3b8' }}>
             {(['browse', 'slots', 'confirm'] as const).map((s, i) => (
-              <span key={s} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                {i > 0 && <span>›</span>}
+              <span key={s} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                {i > 0 && <span style={{ color: '#cbd5e1' }}>›</span>}
                 <span style={{
-                  color: step === s ? '#85a8ff' : step === 'success' || (['browse','slots','confirm'] as const).indexOf(step) > i ? '#34d399' : '#6b7280',
-                  fontWeight: step === s ? 700 : 400,
+                  color: step === s ? 'hsl(var(--accent))' : step === 'success' || (['browse','slots','confirm'] as const).indexOf(step) > i ? '#059669' : '#94a3b8',
+                  fontWeight: step === s ? 700 : 500,
                 }}>
-                  {s === 'browse' ? '1. Choose Therapist' : s === 'slots' ? '2. Pick a Time' : '3. Confirm'}
+                  {s === 'browse' ? '1. Helper' : s === 'slots' ? '2. Time' : '3. Confirm'}
                 </span>
               </span>
             ))}
@@ -262,50 +269,52 @@ export default function SchedulePage() {
         </div>
       </nav>
 
-      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '2.5rem 1.5rem' }}>
+      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1rem 6rem' }}>
 
         {/* ── STEP 1: BROWSE ───────────────────────────────────────────────── */}
         {step === 'browse' && (
           <div>
-            <div style={{ marginBottom: '2rem' }}>
-              <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.35rem' }}>
-                Find Your Therapist
+            <div style={{ marginBottom: '1.75rem' }}>
+              <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 800, color: '#0f172a', marginBottom: '0.35rem', letterSpacing: '-0.02em' }}>
+                Find Your Counsellor or Helper
               </h1>
-              <p style={{ color: '#9ca3af', fontSize: '0.9rem' }}>
-                Browse our verified therapists and schedule a 45-minute session at a time that works for you.
+              <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>
+                Browse our verified practitioners and schedule a 45-minute help session at a time that works for you.
               </p>
             </div>
 
             {/* Filter bar */}
-            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '0.65rem', marginBottom: '1.75rem', flexWrap: 'wrap' }}>
               <input
                 type="text"
                 placeholder="Search by name or specialty…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{
-                  flex: '1 1 260px',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  flex: '1 1 240px',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
                   borderRadius: '0.65rem',
-                  padding: '0.6rem 1rem',
-                  color: '#f9fafb',
+                  padding: '0.6rem 0.95rem',
+                  color: '#0f172a',
                   fontSize: '0.875rem',
                   fontFamily: 'inherit',
+                  outline: 'none',
                 }}
               />
               <select
                 value={filterLanguage}
                 onChange={(e) => setFilterLanguage(e.target.value)}
                 style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
                   borderRadius: '0.65rem',
                   padding: '0.6rem 0.9rem',
-                  color: filterLanguage ? '#f9fafb' : '#6b7280',
+                  color: filterLanguage ? '#0f172a' : '#64748b',
                   fontSize: '0.85rem',
                   fontFamily: 'inherit',
                   minWidth: 140,
+                  outline: 'none',
                 }}
               >
                 <option value="">All Languages</option>
@@ -317,14 +326,15 @@ export default function SchedulePage() {
                 value={filterSpec}
                 onChange={(e) => setFilterSpec(e.target.value)}
                 style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
                   borderRadius: '0.65rem',
                   padding: '0.6rem 0.9rem',
-                  color: filterSpec ? '#f9fafb' : '#6b7280',
+                  color: filterSpec ? '#0f172a' : '#64748b',
                   fontSize: '0.85rem',
                   fontFamily: 'inherit',
                   minWidth: 170,
+                  outline: 'none',
                 }}
               >
                 <option value="">All Specializations</option>
@@ -403,7 +413,7 @@ export default function SchedulePage() {
               >
                 ← Prev week
               </button>
-              <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#d1d5db' }}>
+              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1e293b' }}>
                 Week of {weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
               </span>
               <button
@@ -421,88 +431,204 @@ export default function SchedulePage() {
             </div>
 
             {loadingSlots ? (
-              <div style={{ textAlign: 'center', padding: '3rem', color: '#9ca3af' }}>Loading availability…</div>
+              <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>Loading availability…</div>
             ) : slots.length === 0 ? (
-              <div className="glass" style={{ borderRadius: '1rem', padding: '3rem', textAlign: 'center' }}>
-                <div style={{ marginBottom: '0.75rem', color: '#6b7280' }}><IconCloudOff size={36} /></div>
-                <p style={{ color: '#9ca3af', fontSize: '0.9rem' }}>
-                  {selected.fullName} has not set their weekly availability yet. Try another therapist or check back later.
+              <div className="glass" style={{ borderRadius: '1rem', padding: '3rem', textAlign: 'center', background: '#fff', border: '1px solid #e2e8f0' }}>
+                <div style={{ marginBottom: '0.75rem', color: '#94a3b8' }}><IconCloudOff size={36} /></div>
+                <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>
+                  {selected.fullName} has not set their weekly availability yet. Try another helper or check back later.
                 </p>
               </div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: `repeat(7, minmax(115px, 1fr))`, gap: '0.65rem', minWidth: 700 }}>
-                  {weekDays.map((date, idx) => {
-                    const dow = date.getDay();
-                    const daySlots = slotsByDay[dow] ?? [];
-                    const isToday = isoDate(date) === isoDate(new Date());
-                    const isPast = date < new Date() && !isToday;
+              <>
+                {/* Mobile Day Selector & Slots (<768px) */}
+                <div className="block md:hidden mb-6">
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+                    {weekDays.map((date, idx) => {
+                      const dow = date.getDay();
+                      const isSelected = mobileDayIdx === idx;
+                      const isToday = isoDate(date) === isoDate(new Date());
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setMobileDayIdx(idx)}
+                          className={`flex-shrink-0 flex flex-col items-center py-2 px-3 rounded-xl border transition-all ${
+                            isSelected
+                              ? 'bg-blue-50 border-blue-500 text-blue-600 shadow-sm'
+                              : 'bg-white border-slate-200 text-slate-600'
+                          }`}
+                          style={{ minWidth: 56 }}
+                        >
+                          <span className="text-[10px] font-semibold uppercase tracking-wider">{DAY_NAMES[dow]}</span>
+                          <span className="text-base font-bold text-slate-900 mt-0.5">{date.getDate()}</span>
+                          {isToday && <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1" />}
+                        </button>
+                      );
+                    })}
+                  </div>
 
-                    return (
-                      <div key={idx}>
-                        {/* Day header */}
-                        <div style={{
-                          textAlign: 'center',
-                          marginBottom: '0.5rem',
-                          padding: '0.5rem',
-                          borderRadius: '0.65rem',
-                          background: isToday ? 'rgba(58, 91, 239, 0.15)' : 'transparent',
-                          border: isToday ? '1px solid rgba(58, 91, 239, 0.3)' : '1px solid transparent',
-                        }}>
-                          <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600 }}>{DAY_NAMES[dow]}</div>
-                          <div style={{ fontWeight: 700, fontSize: '1.05rem', color: isToday ? '#85a8ff' : '#f9fafb' }}>
-                            {date.getDate()}
+                  {/* Vertical time slots for the selected day */}
+                  <div className="mt-4 flex flex-col gap-2.5">
+                    {(() => {
+                      const selectedDate = weekDays[mobileDayIdx] || weekDays[0];
+                      const dow = selectedDate.getDay();
+                      const daySlots = slotsByDay[dow] ?? [];
+
+                      if (daySlots.length === 0) {
+                        return (
+                          <div className="p-6 rounded-xl text-center text-slate-500 text-sm bg-white border border-slate-200">
+                            No available slots on {DAY_FULL[dow]}.
+                          </div>
+                        );
+                      }
+
+                      return daySlots.map((slot) => {
+                        const booked = isSlotBooked(selectedDate, slot.startTime);
+                        const isPast = isSlotPast(selectedDate, slot.startTime);
+                        const isAvailable = !booked && !isPast;
+                        const isActive = pickedSlot && isoDate(pickedSlot.date) === isoDate(selectedDate) && pickedSlot.startTime === slot.startTime;
+
+                        return (
+                          <button
+                            key={slot.id + isoDate(selectedDate)}
+                            type="button"
+                            disabled={!isAvailable}
+                            onClick={() => {
+                              setPickedSlot({ date: selectedDate, startTime: slot.startTime });
+                              setStep('confirm');
+                            }}
+                            className="flex items-center justify-between p-3.5 rounded-xl border text-sm font-semibold transition-all active:scale-[0.99]"
+                            style={{
+                              background: isActive
+                                ? '#3b82f6'
+                                : booked
+                                ? '#f1f5f9'
+                                : isPast
+                                ? '#f8fafc'
+                                : '#f0fdf4',
+                              borderColor: isActive
+                                ? '#2563eb'
+                                : booked
+                                ? '#e2e8f0'
+                                : isPast
+                                ? '#f1f5f9'
+                                : '#bbf7d0',
+                              color: isActive
+                                ? '#ffffff'
+                                : booked
+                                ? '#94a3b8'
+                                : isPast
+                                ? '#cbd5e1'
+                                : '#15803d',
+                              cursor: isAvailable ? 'pointer' : 'not-allowed',
+                            }}
+                          >
+                            <span style={{ textDecoration: booked ? 'line-through' : 'none' }}>{fmt24to12(slot.startTime)}</span>
+                            <span className="text-xs font-semibold">
+                              {booked ? 'Booked' : isPast ? 'Past' : isActive ? 'Selected ✓' : 'Select Slot →'}
+                            </span>
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+
+                {/* Desktop 7-Column Grid (>=768px) */}
+                <div className="hidden md:block overflow-x-auto">
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(7, minmax(115px, 1fr))`, gap: '0.65rem', minWidth: 700 }}>
+                    {weekDays.map((date, idx) => {
+                      const dow = date.getDay();
+                      const daySlots = slotsByDay[dow] ?? [];
+                      const isToday = isoDate(date) === isoDate(new Date());
+
+                      return (
+                        <div key={idx}>
+                          {/* Day header */}
+                          <div style={{
+                            textAlign: 'center',
+                            marginBottom: '0.5rem',
+                            padding: '0.5rem',
+                            borderRadius: '0.65rem',
+                            background: isToday ? '#eff6ff' : '#ffffff',
+                            border: isToday ? '1.5px solid #3b82f6' : '1px solid #e2e8f0',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                          }}>
+                            <div style={{ fontSize: '0.75rem', color: isToday ? '#2563eb' : '#64748b', fontWeight: 600 }}>{DAY_NAMES[dow]}</div>
+                            <div style={{ fontWeight: 800, fontSize: '1.05rem', color: isToday ? '#1d4ed8' : '#1e293b' }}>
+                              {date.getDate()}
+                            </div>
+                          </div>
+
+                          {/* Slots */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            {daySlots.length === 0 ? (
+                              <div style={{ textAlign: 'center', padding: '1.25rem 0', color: '#cbd5e1', fontSize: '0.75rem' }}>
+                                —
+                              </div>
+                            ) : daySlots.map((slot) => {
+                              const booked = isSlotBooked(date, slot.startTime);
+                              const isPast = isSlotPast(date, slot.startTime);
+                              const isAvailable = !booked && !isPast;
+                              const isActive = pickedSlot && isoDate(pickedSlot.date) === isoDate(date) && pickedSlot.startTime === slot.startTime;
+
+                              return (
+                                <button
+                                  key={slot.id + isoDate(date)}
+                                  type="button"
+                                  disabled={!isAvailable}
+                                  onClick={() => {
+                                    setPickedSlot({ date, startTime: slot.startTime });
+                                    setStep('confirm');
+                                  }}
+                                  style={{
+                                    padding: '0.45rem 0.35rem',
+                                    borderRadius: '0.5rem',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    cursor: isAvailable ? 'pointer' : 'not-allowed',
+                                    background: isActive
+                                      ? '#3b82f6'
+                                      : booked
+                                      ? '#f1f5f9'
+                                      : isPast
+                                      ? '#f8fafc'
+                                      : '#f0fdf4',
+                                    border: `1px solid ${
+                                      isActive
+                                        ? '#2563eb'
+                                        : booked
+                                        ? '#e2e8f0'
+                                        : isPast
+                                        ? '#f1f5f9'
+                                        : '#bbf7d0'
+                                    }`,
+                                    color: isActive
+                                      ? '#ffffff'
+                                      : booked
+                                      ? '#94a3b8'
+                                      : isPast
+                                      ? '#cbd5e1'
+                                      : '#15803d',
+                                    textDecoration: booked ? 'line-through' : 'none',
+                                    textAlign: 'center',
+                                    transition: 'all 0.15s',
+                                  }}
+                                >
+                                  <div>{fmt24to12(slot.startTime)}</div>
+                                  {booked && <span style={{ display: 'block', fontSize: '0.62rem', color: '#94a3b8' }}>Booked</span>}
+                                  {isPast && !booked && <span style={{ display: 'block', fontSize: '0.62rem', color: '#cbd5e1' }}>Past</span>}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
-
-                        {/* Slots */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                          {daySlots.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '1.25rem 0', color: '#374151', fontSize: '0.75rem' }}>
-                              —
-                            </div>
-                          ) : daySlots.map((slot) => {
-                            const booked = isSlotBooked(date, slot.startTime);
-                            const isActive = pickedSlot && isoDate(pickedSlot.date) === isoDate(date) && pickedSlot.startTime === slot.startTime;
-
-                            return (
-                              <button
-                                key={slot.id + isoDate(date)}
-                                type="button"
-                                disabled={booked || isPast}
-                                onClick={() => {
-                                  setPickedSlot({ date, startTime: slot.startTime });
-                                  setStep('confirm');
-                                }}
-                                style={{
-                                  padding: '0.45rem',
-                                  borderRadius: '0.5rem',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 600,
-                                  cursor: booked || isPast ? 'not-allowed' : 'pointer',
-                                  background: isActive
-                                    ? 'rgba(58, 91, 239, 0.3)'
-                                    : booked || isPast
-                                    ? 'rgba(255,255,255,0.02)'
-                                    : 'rgba(16, 185, 129, 0.12)',
-                                  border: `1px solid ${isActive ? 'rgba(58,91,239,0.5)' : booked || isPast ? 'rgba(255,255,255,0.05)' : 'rgba(16,185,129,0.3)'}`,
-                                  color: booked || isPast ? '#374151' : isActive ? '#85a8ff' : '#34d399',
-                                  textDecoration: booked ? 'line-through' : 'none',
-                                  textAlign: 'center',
-                                  transition: 'all 0.15s',
-                                }}
-                              >
-                                {fmt24to12(slot.startTime)}
-                                {booked && <span style={{ display: 'block', fontSize: '0.65rem', color: '#4b5563' }}>Booked</span>}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
         )}
@@ -514,13 +640,13 @@ export default function SchedulePage() {
               ← Back to calendar
             </button>
 
-            <div className="glass fade-in-up" style={{ borderRadius: '1.5rem', padding: '2rem' }}>
-              <h2 style={{ fontWeight: 700, fontSize: '1.4rem', marginBottom: '1.5rem' }}>Confirm Your Booking</h2>
+            <div className="glass fade-in-up" style={{ borderRadius: '1.25rem', padding: '2rem', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(0,0,0,0.04)' }}>
+              <h2 style={{ fontWeight: 800, fontSize: '1.4rem', marginBottom: '1.5rem', color: '#0f172a' }}>Confirm Your Session</h2>
 
               {/* Summary */}
               <div style={{
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.08)',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
                 borderRadius: '1rem',
                 padding: '1.25rem',
                 marginBottom: '1.5rem',
@@ -528,19 +654,19 @@ export default function SchedulePage() {
                 flexDirection: 'column',
                 gap: '0.75rem',
               }}>
-                <SummaryRow label="Therapist" value={selected.fullName} />
+                <SummaryRow label="Helper / Counsellor" value={selected.fullName} />
                 <SummaryRow
                   label="Date"
                   value={pickedSlot.date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                 />
                 <SummaryRow label="Time" value={`${fmt24to12(pickedSlot.startTime)} (${Intl.DateTimeFormat().resolvedOptions().timeZone})`} />
                 <SummaryRow label="Duration" value="45 minutes" />
-                <SummaryRow label="Cost" value="Free (Donation welcome)" highlight />
+                <SummaryRow label="Cost" value="100% Free (Voluntary donation welcome)" highlight />
               </div>
 
               {/* Session type */}
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: '#9ca3af', marginBottom: '0.5rem', fontWeight: 600 }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: '#475569', marginBottom: '0.5rem', fontWeight: 600 }}>
                   Session Modality
                 </label>
                 <div style={{ display: 'flex', gap: '0.65rem' }}>
@@ -553,9 +679,9 @@ export default function SchedulePage() {
                         flex: 1,
                         padding: '0.65rem',
                         borderRadius: '0.65rem',
-                        border: `1px solid ${sessionType === type ? 'rgba(58,91,239,0.5)' : 'rgba(255,255,255,0.08)'}`,
-                        background: sessionType === type ? 'rgba(58, 91, 239, 0.2)' : 'transparent',
-                        color: sessionType === type ? '#85a8ff' : '#9ca3af',
+                        border: `1px solid ${sessionType === type ? '#2563eb' : '#cbd5e1'}`,
+                        background: sessionType === type ? '#eff6ff' : '#ffffff',
+                        color: sessionType === type ? '#1d4ed8' : '#64748b',
                         fontWeight: 600,
                         fontSize: '0.85rem',
                         cursor: 'pointer',
@@ -576,8 +702,8 @@ export default function SchedulePage() {
 
               {bookingError && (
                 <div style={{
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
                   borderRadius: '0.65rem',
                   padding: '0.75rem 1rem',
                   color: '#dc2626',
@@ -609,7 +735,7 @@ export default function SchedulePage() {
                 }}
               >
                 <IconCheck size={18} />
-                {booking ? 'Booking...' : 'Confirm Booking'}
+                {booking ? 'Booking...' : 'Confirm Session'}
               </button>
             </div>
           </div>
@@ -622,20 +748,20 @@ export default function SchedulePage() {
               width: 72,
               height: 72,
               borderRadius: '50%',
-              background: 'rgba(16, 185, 129, 0.12)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 1.5rem auto',
             }}>
-              <IconCheck size={36} color="#059669" />
+              <IconCheck size={36} color="#15803d" />
             </div>
-            <h1 style={{ fontSize: '1.85rem', fontWeight: 700, marginBottom: '0.5rem', color: '#1e293b' }}>
+            <h1 style={{ fontSize: '1.85rem', fontWeight: 800, marginBottom: '0.5rem', color: '#0f172a' }}>
               Session <span className="gradient-text">Booked!</span>
             </h1>
             <p style={{ color: '#64748b', fontSize: '0.95rem', marginBottom: '0.5rem' }}>
-              Your {sessionType} session with <strong style={{ color: '#1e293b' }}>{selected.fullName}</strong> is confirmed.
+              Your {sessionType} session with <strong style={{ color: '#0f172a' }}>{selected.fullName}</strong> is confirmed.
             </p>
             <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '2.5rem' }}>
               {pickedSlot.date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })} at {fmt24to12(pickedSlot.startTime)}
@@ -663,7 +789,6 @@ export default function SchedulePage() {
           </div>
         )}
 
-
       </main>
     </div>
   );
@@ -680,33 +805,35 @@ function TherapistCard({ therapist, onSelect }: { therapist: TherapistListing; o
         padding: '1.5rem',
         cursor: 'pointer',
         transition: 'all 0.2s',
-        border: '1px solid rgba(255,255,255,0.07)',
+        background: '#ffffff',
+        border: '1px solid #e2e8f0',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
       }}
       onClick={onSelect}
     >
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
         <div style={{
-          width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
-          background: '#3b82f6',
+          width: 50, height: 50, borderRadius: '50%', flexShrink: 0,
+          background: 'hsl(var(--accent))',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '1.35rem', fontWeight: 700, color: '#fdfbf7',
-          boxShadow: '0 4px 14px rgba(59, 130, 246, 0.3)',
+          fontSize: '1.3rem', fontWeight: 700, color: '#ffffff',
+          boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
         }}>
           {therapist.fullName.charAt(0)}
         </div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: '1rem', color: '#f9fafb' }}>{therapist.fullName}</div>
-          <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '0.1rem' }}>
+          <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>{therapist.fullName}</div>
+          <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.1rem' }}>
             {therapist.yearsOfExperience} years experience
-            {therapist.hourlyRateUsd === null && <span style={{ marginLeft: '0.5rem', color: '#34d399', fontWeight: 600 }}>· Free</span>}
+            {therapist.hourlyRateUsd === null && <span style={{ marginLeft: '0.5rem', color: '#15803d', fontWeight: 700 }}>· Free</span>}
           </div>
         </div>
       </div>
 
       {/* Bio */}
       {therapist.bio && (
-        <p style={{ color: '#d1d5db', fontSize: '0.83rem', lineHeight: 1.6, marginBottom: '1rem',
+        <p style={{ color: '#475569', fontSize: '0.83rem', lineHeight: 1.6, marginBottom: '1rem',
           display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {therapist.bio}
         </p>
@@ -717,14 +844,14 @@ function TherapistCard({ therapist, onSelect }: { therapist: TherapistListing; o
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '1rem' }}>
           {therapist.specializations.slice(0, 4).map((s) => (
             <span key={s} style={{
-              background: 'rgba(58,91,239,0.1)', border: '1px solid rgba(58,91,239,0.2)',
-              color: '#85a8ff', padding: '0.15rem 0.5rem', borderRadius: '0.35rem', fontSize: '0.72rem', fontWeight: 500,
+              background: '#eff6ff', border: '1px solid #bfdbfe',
+              color: '#1d4ed8', padding: '0.15rem 0.5rem', borderRadius: '0.35rem', fontSize: '0.72rem', fontWeight: 600,
             }}>
               {s}
             </span>
           ))}
           {therapist.specializations.length > 4 && (
-            <span style={{ color: '#6b7280', fontSize: '0.72rem', padding: '0.15rem 0.3rem' }}>
+            <span style={{ color: '#94a3b8', fontSize: '0.72rem', padding: '0.15rem 0.3rem' }}>
               +{therapist.specializations.length - 4} more
             </span>
           )}
@@ -732,16 +859,16 @@ function TherapistCard({ therapist, onSelect }: { therapist: TherapistListing; o
       )}
 
       {/* Languages + CTA */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ color: '#9ca3af', fontSize: '0.78rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
+        <span style={{ color: '#64748b', fontSize: '0.78rem' }}>
           <IconGlobe size={13} style={{ marginRight: '0.25rem', verticalAlign: 'middle', flexShrink: 0 }} />{therapist.languages.slice(0, 2).join(', ')}{therapist.languages.length > 2 ? ` +${therapist.languages.length - 2}` : ''}
         </span>
         <span style={{
-          background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)',
-          color: '#34d399', padding: '0.25rem 0.75rem', borderRadius: '0.45rem',
+          background: '#f0fdf4', border: '1px solid #bbf7d0',
+          color: '#15803d', padding: '0.25rem 0.75rem', borderRadius: '0.45rem',
           fontSize: '0.78rem', fontWeight: 700,
         }}>
-          Book →
+          Book Slot →
         </span>
       </div>
     </div>
@@ -751,8 +878,8 @@ function TherapistCard({ therapist, onSelect }: { therapist: TherapistListing; o
 function SummaryRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <span style={{ color: '#9ca3af', fontSize: '0.85rem' }}>{label}</span>
-      <span style={{ fontWeight: 600, fontSize: '0.9rem', color: highlight ? '#34d399' : '#f9fafb' }}>{value}</span>
+      <span style={{ color: '#64748b', fontSize: '0.85rem' }}>{label}</span>
+      <span style={{ fontWeight: 600, fontSize: '0.9rem', color: highlight ? '#15803d' : '#0f172a' }}>{value}</span>
     </div>
   );
 }

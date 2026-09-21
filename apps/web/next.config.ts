@@ -37,6 +37,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Allow LAN devices (phones, tablets) to connect to the dev HMR socket
+  allowedDevOrigins: ['192.168.0.100', '192.168.0.*'],
   turbopack: {
     root: path.resolve(process.cwd(), '../../'),
   },

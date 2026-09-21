@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
+  Play,
   Zap,
   Video,
   CheckCircle,
@@ -12,6 +13,7 @@ import {
   Shield,
   ArrowRight,
 } from 'lucide-react';
+import MobileNavDrawer from '@/components/MobileNavDrawer';
 
 
 const stats = [
@@ -111,16 +113,16 @@ export default function LandingPage() {
         </div>
 
         {/* ── Navbar ──────────────────────────────────────────────────────── */}
-        <header className="relative z-20 flex items-center justify-between px-6 md:px-12 lg:px-20 py-5 font-body">
+        <header className="relative z-20 flex items-center justify-between px-4 sm:px-6 md:px-12 lg:px-20 py-4 sm:py-5 font-body">
           {/* Left: Brand Logo */}
-          <Link href="/" className="text-xl font-semibold tracking-tight text-foreground flex items-center gap-1.5">
-            <span className="text-accent text-lg">✦</span>
+          <Link href="/" className="text-lg sm:text-xl font-semibold tracking-tight text-foreground flex items-center gap-1.5">
+            <span className="text-accent text-base sm:text-lg">✦</span>
             <span className="text-foreground font-bold">Jarwis</span>
             <span className="text-muted-foreground font-medium">Help Me!</span>
           </Link>
 
-          {/* Right: Nav links + Portal Actions */}
-          <div className="flex items-center gap-6 md:gap-8">
+          {/* Right: Nav links + Portal Actions + Mobile Drawer */}
+          <div className="flex items-center gap-3 sm:gap-6 md:gap-8">
             <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-muted-foreground">
               <Link href="/donate" className="hover:text-foreground transition-colors">
                 Support Mission
@@ -135,23 +137,26 @@ export default function LandingPage() {
 
             <Link
               href="/register"
-              className="rounded-full px-5 py-2 text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 transition-all shadow-sm inline-flex items-center justify-center"
+              className="hidden sm:inline-flex rounded-full px-5 py-2 text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 transition-all shadow-sm items-center justify-center"
             >
               Get Started
             </Link>
+
+            {/* Mobile Hamburger Drawer */}
+            <MobileNavDrawer />
           </div>
         </header>
 
         {/* ── Hero Main Content ────────────────────────────────────────────── */}
-        <main className="relative z-10 flex flex-col items-center w-full px-4 flex-1 pt-4 md:pt-8 pb-12">
+        <main className="relative z-10 flex flex-col items-center w-full px-4 sm:px-6 flex-1 pt-6 md:pt-8 pb-12">
           {/* 1. Badge */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="mb-5"
+            className="mb-4 sm:mb-5"
           >
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background/95 backdrop-blur-sm px-4 py-1.5 text-sm text-muted-foreground font-body shadow-sm">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background/95 backdrop-blur-sm px-3.5 py-1 sm:px-4 sm:py-1.5 text-xs sm:text-sm text-muted-foreground font-body shadow-sm">
               <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
               <span>Now available in India &amp; internationally</span>
             </div>
@@ -162,7 +167,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-center font-display text-5xl md:text-6xl lg:text-[4.75rem] leading-[1.0] tracking-tight text-foreground max-w-2xl"
+            className="text-center font-display text-3xl sm:text-5xl md:text-6xl lg:text-[4.75rem] leading-[1.08] sm:leading-[1.0] tracking-tight text-foreground max-w-2xl px-2"
           >
             HELP Available, <span className="italic">right when you need it</span>
           </motion.h1>
@@ -172,7 +177,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="mt-4 text-center text-base md:text-lg text-muted-foreground max-w-[640px] leading-relaxed font-body"
+            className="mt-3 sm:mt-4 text-center text-sm sm:text-base md:text-lg text-muted-foreground max-w-[640px] leading-relaxed font-body px-2"
           >
             Connect instantly with verified therapists for live voice, video, or chat sessions.
             Free to use — supported by your generosity.
@@ -183,22 +188,30 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="mt-6 flex items-center gap-3.5 flex-wrap justify-center"
+            className="mt-6 flex flex-col sm:flex-row items-center gap-3 sm:gap-3.5 w-full sm:w-auto max-w-sm sm:max-w-none justify-center px-4 sm:px-0"
           >
             <Link
               href="/register?role=client"
-              className="rounded-full px-6 py-3 text-sm font-medium font-body bg-primary text-primary-foreground hover:opacity-90 transition-all shadow-md inline-flex items-center justify-center h-11"
+              className="w-full sm:w-auto rounded-full px-6 py-3 text-sm font-medium font-body bg-primary text-primary-foreground hover:opacity-90 active:scale-[0.98] transition-all shadow-md inline-flex items-center justify-center h-12 sm:h-11"
             >
               I need help
             </Link>
             <Link
               href="/register?role=therapist"
-              className="rounded-full px-6 py-3 text-sm font-medium font-body bg-background/95 backdrop-blur-sm border border-border text-foreground hover:bg-secondary transition-all shadow-sm inline-flex items-center justify-center h-11"
+              className="w-full sm:w-auto rounded-full px-6 py-3 text-sm font-medium font-body bg-background/95 backdrop-blur-sm border border-border text-foreground hover:bg-secondary active:scale-[0.98] transition-all shadow-sm inline-flex items-center justify-center h-12 sm:h-11"
             >
               I&apos;m here to help
             </Link>
+            <div className="flex items-center justify-center mt-1 sm:mt-0">
+              <button
+                type="button"
+                aria-label="Play video demo"
+                className="h-11 w-11 rounded-full border-0 bg-background shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:bg-background/80 active:scale-95 flex items-center justify-center transition-transform hover:scale-105"
+              >
+                <Play className="h-4 w-4 fill-foreground text-foreground translate-x-0.5" />
+              </button>
+            </div>
           </motion.div>
-
 
         </main>
       </div>

@@ -1067,19 +1067,19 @@ export default function LiveSessionRoomPage() {
           background: 'rgba(10, 15, 30, 0.9)',
           backdropFilter: 'blur(12px)',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
-          padding: '0.75rem 1.5rem',
+          padding: '0.6rem 1rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <span style={{ fontSize: '1.1rem', fontWeight: 800 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <span className="text-sm sm:text-base font-extrabold hidden xs:inline-block">
             <span className="gradient-text">Jarwis</span>{' '}
             <span style={{ color: '#fdfbf7' }}>Help Me!</span>
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <span
               style={{
                 width: 8,
@@ -1088,18 +1088,20 @@ export default function LiveSessionRoomPage() {
                 background: state === 'connected' ? '#10b981' : '#f59e0b',
                 boxShadow: state === 'connected' ? '0 0 8px #10b981' : 'none',
                 display: 'inline-block',
+                flexShrink: 0,
               }}
             />
-            <span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>
+            <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>
               {state === 'connecting' ? (
                 'Connecting...'
               ) : (
                 <>
-                  Live with <strong style={{ color: '#f9fafb' }}>{otherPersonName}</strong>{' '}
+                  <span className="hidden sm:inline">Live with </span>
+                  <strong style={{ color: '#f9fafb' }} className="max-w-[110px] sm:max-w-none truncate inline-block align-bottom">{otherPersonName}</strong>{' '}
                   {peerConnected ? (
-                    <span style={{ color: '#10b981', fontSize: '0.8rem' }}>(Connected)</span>
+                    <span style={{ color: '#10b981', fontSize: '0.75rem' }}>● Connected</span>
                   ) : (
-                    <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>(Waiting for peer...)</span>
+                    <span style={{ color: '#f59e0b', fontSize: '0.75rem' }}>● Waiting</span>
                   )}
                 </>
               )}
@@ -1107,7 +1109,7 @@ export default function LiveSessionRoomPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {/* Timer */}
           <div
             style={{
@@ -1213,20 +1215,16 @@ export default function LiveSessionRoomPage() {
             {/* 1. Video Mode */}
             {isVideo && (
               <div
+                className="flex flex-col md:flex-row w-full h-full gap-3 md:gap-5 items-center justify-center relative"
                 style={{
-                  display: 'flex',
-                  width: '100%',
-                  height: '100%',
-                  maxHeight: 'calc(100vh - 170px)',
-                  gap: '1.25rem',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  maxHeight: 'calc(100vh - 160px)',
                 }}
               >
                 {/* Remote Participant Video Feed */}
                 <div
                   style={{
                     flex: 1,
+                    width: '100%',
                     maxWidth: 820,
                     height: '100%',
                     background: 'rgba(255, 255, 255, 0.02)',
@@ -1315,21 +1313,16 @@ export default function LiveSessionRoomPage() {
                   </div>
                 </div>
 
-                {/* Local Self-view Camera */}
+                {/* Local Self-view Camera: PiP on mobile, standard on desktop */}
                 <div
+                  className="mobile-pip-card"
                   style={{
-                    width: 260,
-                    height: 195,
                     background: isCameraOff ? 'rgba(255, 255, 255, 0.03)' : '#000',
                     border: `1px solid ${isCameraOff ? 'rgba(255,255,255,0.08)' : 'rgba(59, 130, 246, 0.4)'}`,
-                    borderRadius: '1rem',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    boxShadow: '0 8px 30px rgba(0,0,0,0.4)',
                   }}
                 >
                   {isCameraOff ? (
@@ -1465,13 +1458,11 @@ export default function LiveSessionRoomPage() {
         {/* Side Chat Panel (for video/voice sessions) */}
         {!isChat && showChat && (
           <div
+            className="fixed inset-x-0 bottom-0 top-16 z-50 md:static md:w-[330px] md:top-auto flex flex-col"
             style={{
-              width: 330,
               borderLeft: '1px solid rgba(255,255,255,0.08)',
-              background: 'rgba(10, 15, 30, 0.85)',
-              backdropFilter: 'blur(12px)',
-              display: 'flex',
-              flexDirection: 'column',
+              background: 'rgba(10, 15, 30, 0.95)',
+              backdropFilter: 'blur(16px)',
               flexShrink: 0,
             }}
           >
@@ -1496,7 +1487,8 @@ export default function LiveSessionRoomPage() {
                   border: 'none',
                   color: '#94a3b8',
                   cursor: 'pointer',
-                  fontSize: '1rem',
+                  fontSize: '1.1rem',
+                  padding: '0.2rem 0.5rem',
                 }}
               >
                 ✕
@@ -1515,17 +1507,18 @@ export default function LiveSessionRoomPage() {
 
       {/* Bottom Controls Bar */}
       <div
+        className="pb-safe"
         style={{
           position: 'relative',
           zIndex: 10,
           background: 'rgba(7, 11, 22, 0.95)',
           backdropFilter: 'blur(12px)',
           borderTop: '1px solid rgba(255,255,255,0.06)',
-          padding: '1rem 2rem',
+          padding: '0.75rem 1rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '1rem',
+          gap: '0.65rem',
           flexShrink: 0,
         }}
       >

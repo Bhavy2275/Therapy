@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -18,7 +18,7 @@
   --border: 0 0% 90%;
   --ring: 239 84% 67%;
   --radius: 0.5rem;
-  --font-display: 'Instrument Serif', serif;
+  --font-display: 'Plus Jakarta Sans', 'Inter', sans-serif;
   --font-body: 'Inter', sans-serif;
   --shadow-dashboard: 0 25px 80px -12px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.06);
 
@@ -64,10 +64,11 @@ body {
   font-weight: 800;
 }
 
-/* ── Display headings use Instrument Serif ───────────────────────────────── */
+/* ── Display headings ────────────────────────────────────────────────────── */
 h1, h2, h3 {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
+  font-weight: 700;
 }
 
 /* ── Surface Containers / Lifted Cards ───────────────────────────────────── */
@@ -109,10 +110,13 @@ h1, h2, h3 {
   color: hsl(var(--accent-foreground));
   font-weight: 600;
   font-size: 0.9rem;
+  line-height: 1.25;
   font-family: var(--font-body);
   border-radius: 9999px;
   border: none;
   cursor: pointer;
+  white-space: nowrap !important;
+  flex-shrink: 0;
   transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
   box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
   text-decoration: none;
@@ -144,10 +148,13 @@ h1, h2, h3 {
   color: hsl(var(--muted-foreground));
   font-weight: 500;
   font-size: 0.875rem;
+  line-height: 1.25;
   font-family: var(--font-body);
   border-radius: 9999px;
   border: 1px solid hsl(var(--border));
   cursor: pointer;
+  white-space: nowrap !important;
+  flex-shrink: 0;
   transition: background 0.2s, color 0.2s, border-color 0.2s;
   text-decoration: none;
 }
@@ -169,10 +176,13 @@ h1, h2, h3 {
   color: #ffffff;
   font-weight: 600;
   font-size: 0.9rem;
+  line-height: 1.25;
   font-family: var(--font-body);
   border-radius: 9999px;
   border: none;
   cursor: pointer;
+  white-space: nowrap !important;
+  flex-shrink: 0;
   transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
   box-shadow: 0 4px 14px rgba(159, 18, 57, 0.25);
 }
@@ -199,15 +209,23 @@ h1, h2, h3 {
 /* ── Form Inputs ─────────────────────────────────────────────────────────── */
 .input {
   width: 100%;
-  padding: 0.7rem 1rem;
+  padding: 0.75rem 1rem;
   background: hsl(var(--background));
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
   color: hsl(var(--foreground));
   font-family: var(--font-body);
-  font-size: 0.9rem;
+  font-size: 1rem; /* Minimum 16px to prevent iOS Safari auto-zoom */
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
+}
+
+@media (min-width: 768px) {
+  .input {
+    font-size: 0.9rem;
+    padding: 0.7rem 1rem;
+  }
 }
 
 .input::placeholder {
@@ -221,6 +239,48 @@ h1, h2, h3 {
 
 .input-error {
   border-color: #9f1239 !important;
+}
+
+/* ── Mobile Touch & Safe Area Utilities ──────────────────────────────────── */
+.touch-callout-none {
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
+}
+
+.pt-safe {
+  padding-top: max(1rem, env(safe-area-inset-top, 1rem));
+}
+
+.safe-bottom-sheet {
+  padding-bottom: max(1.5rem, calc(env(safe-area-inset-bottom, 0px) + 1rem));
+}
+
+/* ── Mobile PiP Window Styles ────────────────────────────────────────────── */
+.mobile-pip-card {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 110px;
+  height: 155px;
+  border-radius: 0.85rem;
+  overflow: hidden;
+  z-index: 40;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 0 1.5px rgba(255, 255, 255, 0.2);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (min-width: 768px) {
+  .mobile-pip-card {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 260px;
+    height: 195px;
+  }
 }
 
 /* ── Spinner ─────────────────────────────────────────────────────────────── */

@@ -149,18 +149,19 @@ export default async function DashboardPage() {
         background: 'hsl(var(--background) / 0.92)',
         backdropFilter: 'blur(16px)',
       }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '4rem' }}>
-          <span style={{ fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-body)' }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
+          <span style={{ fontSize: '1.2rem', fontWeight: 800, fontFamily: 'var(--font-body)' }}>
             <span className="gradient-text">Jarwis</span>{' '}
             <span style={{ color: 'hsl(var(--foreground))' }}>Help Me!</span>
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             {role === 'admin' && (
               <Link
                 href="/admin"
+                className="hidden sm:inline-flex"
                 style={{
-                  padding: '0.45rem 1rem',
-                  fontSize: '0.85rem',
+                  padding: '0.45rem 0.85rem',
+                  fontSize: '0.825rem',
                   fontWeight: 600,
                   background: '#eff6ff',
                   color: '#1d4ed8',
@@ -172,7 +173,7 @@ export default async function DashboardPage() {
                 Admin Portal
               </Link>
             )}
-            <Link href="/donate" className="btn-secondary" style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }}>
+            <Link href="/donate" className="hidden sm:inline-flex btn-secondary" style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}>
               Support Mission
             </Link>
             <Link
@@ -183,18 +184,18 @@ export default async function DashboardPage() {
             >
               <IconSettings size={18} color="#64748b" />
             </Link>
-            <SignOutButton style={{ padding: '0.45rem 1.1rem', fontSize: '0.875rem' }} />
+            <SignOutButton style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }} />
           </div>
         </div>
       </nav>
 
-      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '3rem 1.5rem' }}>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-24 md:pb-10">
         {/* Welcome */}
-        <div className="fade-in-up" style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem', color: 'hsl(var(--foreground))', fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>
+        <div className="fade-in-up" style={{ marginBottom: '1.75rem' }}>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.35rem', color: 'hsl(var(--foreground))', fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>
             Welcome, <span className="gradient-text">{name}</span>
           </h1>
-          <p style={{ color: '#64748b' }}>
+          <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
             You are signed in as a{' '}
             <span style={{
               background: 'rgba(132, 169, 140, 0.15)', color: '#2d5a3c',
@@ -310,7 +311,7 @@ function ClientDashboard({
     <div>
       <ClientSosButton />
       {nextSession && <NextSessionWidget session={nextSession} />}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1.25rem' }}>
         <DashCard
           icon={<IconBolt size={26} color="#3b82f6" />}
           title="Instant Session"
@@ -435,7 +436,7 @@ function TherapistDashboard({
       <IncomingOfferModal />
       {status === 'approved' && <TherapistPresenceBar initialAvailable={isAvailable} />}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1.25rem' }}>
         <DashCard
           icon={<IconIdCard size={26} color="#3b82f6" />}
           title="My Profile & Credentials"
@@ -483,7 +484,7 @@ function TherapistDashboard({
 function AdminDashboard() {
   return (
     <div className="fade-in-up">
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
         <div
           style={{
             borderRadius: '1rem',

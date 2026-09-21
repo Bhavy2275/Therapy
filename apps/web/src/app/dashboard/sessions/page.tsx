@@ -301,10 +301,12 @@ export default function SessionsPage() {
         >
           <div>
             <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.35rem', color: '#1e293b' }}>
-              Therapy Sessions History
+              {userRole === 'therapist' ? 'Counselling Session History' : 'Rescue/ Prevention History'}
             </h1>
             <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
-              Track your upcoming consultations, completed sessions, and clinical records.
+              {userRole === 'therapist'
+                ? 'Track your upcoming consultations, completed counselling sessions, and notes.'
+                : 'Track your support history, consultations, and help provided.'}
             </p>
           </div>
 
@@ -390,7 +392,7 @@ export default function SessionsPage() {
             >
               {filter === 'all'
                 ? userRole === 'client'
-                  ? 'You have not requested any therapy sessions yet. Connect with a licensed therapist whenever you need support.'
+                  ? 'You have not requested any help sessions yet. Connect with a verified helper or counsellor whenever you need support.'
                   : 'You have no recorded sessions yet. Go available on your dashboard to accept incoming requests.'
                 : `No sessions matched the "${filter}" filter.`}
             </p>

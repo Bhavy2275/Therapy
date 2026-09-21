@@ -1,12 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { animate } from 'animejs';
 import { IconAlertCircle } from '@/components/Icons';
 
 export default function ClientSosButton() {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
+  const iconRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (iconRef.current) {
+      animate(iconRef.current, {
+        scale: [1, 1.14, 1],
+        boxShadow: [
+          '0 0 10px rgba(220, 38, 38, 0.4)',
+          '0 0 24px rgba(220, 38, 38, 0.8)',
+          '0 0 10px rgba(220, 38, 38, 0.4)',
+        ],
+        duration: 1400,
+        loop: true,
+        ease: 'inOutQuad',
+      });
+    }
+  }, []);
 
   function handleConfirmSos() {
     setIsOpen(false);
@@ -17,43 +35,23 @@ export default function ClientSosButton() {
     <>
       {/* SOS Trigger Banner / Button */}
       <div
+        className="p-4 sm:p-5 mb-6 sm:mb-8 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-rose-400/80 shadow-[0_4px_20px_rgba(239,68,68,0.12)]"
         style={{
           background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
-          border: '1.5px solid #f87171',
-          borderRadius: '1rem',
-          padding: '1.25rem 1.5rem',
-          marginBottom: '2rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '1rem',
-          boxShadow: '0 4px 20px rgba(239, 68, 68, 0.12)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div className="flex items-center gap-3.5">
           <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: '50%',
-              background: '#dc2626',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontSize: '1.4rem',
-              boxShadow: '0 0 15px rgba(220, 38, 38, 0.4)',
-              flexShrink: 0,
-            }}
+            ref={iconRef}
+            className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-rose-600 flex items-center justify-center text-white text-xl sm:text-2xl shadow-md shrink-0"
           >
             🚨
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#991b1b', marginBottom: '0.2rem' }}>
+            <div className="font-bold text-base sm:text-lg text-rose-900 mb-0.5 leading-tight">
               Immediate Mental Health Crisis / SOS
             </div>
-            <div style={{ fontSize: '0.85rem', color: '#7f1d1d', lineHeight: 1.4 }}>
+            <div className="text-xs sm:text-sm text-rose-800 leading-snug">
               In acute distress? Broadcast an urgent SOS alert to all on-duty therapists immediately.
             </div>
           </div>
@@ -62,23 +60,7 @@ export default function ClientSosButton() {
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          style={{
-            background: '#dc2626',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '0.75rem',
-            padding: '0.75rem 1.5rem',
-            fontSize: '0.95rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 4px 15px rgba(220, 38, 38, 0.35)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            transition: 'transform 0.15s ease, background 0.15s ease',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#b91c1c')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = '#dc2626')}
+          className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm sm:text-base py-3 px-6 rounded-xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
         >
           <span>Emergency SOS</span>
           <span>→</span>

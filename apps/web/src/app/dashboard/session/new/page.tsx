@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { getMatchingSocket, disconnectMatchingSocket } from '@/lib/socket';
 import type { SessionType, SessionMatchedPayload } from '@therapy/shared-types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { animate } from 'animejs';
 import {
   IconBolt,
   IconVideo,
@@ -60,6 +61,21 @@ export default function NewInstantSessionPage() {
   const statusPollRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const currentSessionIdRef = useRef<string | null>(null);
+  const radarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (step === 'searching' && radarRef.current) {
+      const ripples = radarRef.current.querySelectorAll('.anime-ripple');
+      animate(ripples, {
+        scale: [0.7, 2.3],
+        opacity: [0.8, 0],
+        delay: (_el, i) => (i ?? 0) * 750,
+        duration: 2200,
+        loop: true,
+        ease: 'outSine',
+      });
+    }
+  }, [step]);
 
   useEffect(() => {
     return () => {
@@ -308,7 +324,7 @@ export default function NewInstantSessionPage() {
         </div>
       </nav>
 
-      <main style={{ maxWidth: 800, margin: '0 auto', padding: '2.5rem 1.5rem 5rem' }}>
+      <main style={{ maxWidth: 800, margin: '0 auto', padding: '2.5rem 1.5rem 6rem' }}>
         {/* Step 1: Configuration Form */}
         {step === 'config' && (
           <div className="fade-in-up">
@@ -337,7 +353,7 @@ export default function NewInstantSessionPage() {
                 <label style={{ display: 'block', fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.75rem', color: '#1e293b' }}>
                   1. Choose Connection Modality
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '0.85rem' }}>
                   {SESSION_MODALITIES.map((m) => {
                     const isSelected = sessionType === m.type;
                     return (
@@ -367,7 +383,7 @@ export default function NewInstantSessionPage() {
               </div>
 
               {/* Language Selection */}
-              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '0.85rem', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '0.85rem', padding: '1.25rem sm:padding: 1.5rem', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
                 <label style={{ display: 'block', fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.35rem', color: '#1e293b' }}>
                   2. Language Preference
                 </label>
@@ -402,7 +418,7 @@ export default function NewInstantSessionPage() {
               </div>
 
               {/* Focus notes */}
-              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '0.85rem', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '0.85rem', padding: '1.25rem sm:padding: 1.5rem', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
                 <label style={{ display: 'block', fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.35rem', color: '#1e293b' }}>
                   3. What would you like to talk about today? (Optional)
                 </label>
@@ -427,20 +443,21 @@ export default function NewInstantSessionPage() {
               </div>
 
               {/* CTA */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '0.5rem' }}>
-                <Link href="/dashboard" className="btn-ghost" style={{ padding: '0.75rem 1.5rem' }}>
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-4">
+                <Link href="/dashboard" className="btn-ghost w-full sm:w-auto text-center" style={{ padding: '0.75rem 1.5rem' }}>
                   Cancel
                 </Link>
                 <button
                   type="button"
                   onClick={startMatching}
-                  className="btn-primary"
+                  className="btn-primary w-full sm:w-auto"
                   style={{
-                    padding: '0.75rem 2.5rem',
+                    padding: '0.85rem 2rem',
                     fontSize: '1rem',
                     fontWeight: 600,
                     display: 'inline-flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '0.5rem',
                   }}
                 >
@@ -457,7 +474,7 @@ export default function NewInstantSessionPage() {
           <div className="fade-in-up" style={{
             background: '#ffffff',
             borderRadius: '1.5rem',
-            padding: '4rem 2rem',
+            padding: '3rem 1.5rem sm:padding: 4rem 2rem',
             textAlign: 'center',
             position: 'relative',
             overflow: 'hidden',
@@ -465,36 +482,50 @@ export default function NewInstantSessionPage() {
             boxShadow: '0 10px 30px rgba(0, 0, 0, 0.04)',
           }}>
             {/* Animated Radar Ripples */}
-            <div style={{
-              width: 160,
-              height: 160,
-              margin: '0 auto 2.5rem',
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              {/* Outer Ripple 1 */}
+            <div
+              ref={radarRef}
+              style={{
+                width: 170,
+                height: 170,
+                margin: '0 auto 2.5rem',
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {/* anime.js ripple wave elements */}
               <div
-                className="ripple-wave"
+                className="anime-ripple"
                 style={{
                   position: 'absolute',
                   width: '100%',
                   height: '100%',
                   borderRadius: '50%',
-                  border: '2px solid rgba(59, 130, 246, 0.35)',
+                  border: '2px solid rgba(59, 130, 246, 0.5)',
+                  pointerEvents: 'none',
                 }}
               />
-              {/* Outer Ripple 2 */}
               <div
-                className="ripple-wave"
+                className="anime-ripple"
                 style={{
                   position: 'absolute',
                   width: '100%',
                   height: '100%',
                   borderRadius: '50%',
-                  border: '2px solid rgba(20, 184, 166, 0.35)',
-                  animationDelay: '1.2s',
+                  border: '2px solid rgba(16, 185, 129, 0.5)',
+                  pointerEvents: 'none',
+                }}
+              />
+              <div
+                className="anime-ripple"
+                style={{
+                  position: 'absolute',
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '50%',
+                  border: '2px solid rgba(99, 102, 241, 0.5)',
+                  pointerEvents: 'none',
                 }}
               />
               {/* Center Radar Icon */}

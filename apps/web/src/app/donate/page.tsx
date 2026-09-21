@@ -58,40 +58,40 @@ export default function DonatePage() {
         background: 'rgba(255, 255, 255, 0.95)',
         backdropFilter: 'blur(16px)',
       }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '4rem' }}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <span style={{ fontSize: '1.25rem', fontWeight: 800 }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '3.75rem' }}>
+          <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
+            <span style={{ fontSize: '1.15rem', fontWeight: 800 }}>
               <span className="gradient-text">Jarwis</span>{' '}
               <span style={{ color: '#1e293b' }}>Help Me!</span>
             </span>
           </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <Link href="/dashboard" className="btn-ghost" style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Link href="/dashboard" className="btn-ghost" style={{ padding: '0.4rem 0.85rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
               Dashboard
             </Link>
-            <Link href="/dashboard/session/new" className="btn-primary" style={{ padding: '0.45rem 1.15rem', fontSize: '0.85rem' }}>
+            <Link href="/dashboard/session/new" className="btn-primary" style={{ padding: '0.45rem 1rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
               Find Help Now
             </Link>
           </div>
         </div>
       </nav>
 
-      <main style={{ maxWidth: 720, margin: '0 auto', padding: '3.5rem 1.5rem 6rem' }}>
+      <main style={{ maxWidth: 720, margin: '0 auto', padding: '2.5rem 1.25rem 5rem' }}>
         {/* Header */}
-        <div className="fade-in-up" style={{ textAlign: 'center', marginBottom: '3rem' }}>
+        <div className="fade-in-up" style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '0.45rem',
-            background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)',
-            color: '#dc2626', padding: '0.35rem 0.9rem', borderRadius: '2rem',
+            background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)',
+            color: 'hsl(var(--accent))', padding: '0.35rem 0.9rem', borderRadius: '2rem',
             fontSize: '0.85rem', fontWeight: 600, marginBottom: '1.25rem',
           }}>
-            <IconHeart size={16} color="#dc2626" />
+            <IconHeart size={16} color="hsl(var(--accent))" />
             <span>Voluntary Support — 100% Free Platform</span>
           </div>
-          <h1 style={{ fontSize: '2.25rem', fontWeight: 800, color: '#1e293b', marginBottom: '0.75rem', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: 'clamp(1.75rem, 5vw, 2.5rem)', fontWeight: 800, color: '#0f172a', marginBottom: '0.75rem', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
             Support Our <span className="gradient-text">Free Mission</span>
           </h1>
-          <p style={{ color: '#64748b', fontSize: '1rem', maxWidth: 540, margin: '0 auto', lineHeight: 1.65 }}>
+          <p style={{ color: '#64748b', fontSize: '0.975rem', maxWidth: 540, margin: '0 auto', lineHeight: 1.65 }}>
             {settings.donation_note}
           </p>
         </div>
@@ -102,14 +102,14 @@ export default function DonatePage() {
           </div>
         ) : (
           <div className="fade-in-up">
-            {/* UPI QR Card */}
+            {/* UPI Card */}
             <div style={{
               background: '#ffffff',
               border: '1px solid #e2e8f0',
-              borderRadius: '1.5rem',
-              padding: '2.5rem',
+              borderRadius: '1.25rem',
+              padding: 'clamp(1.5rem, 4vw, 2.5rem)',
               textAlign: 'center',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.05)',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.04)',
               marginBottom: '1.5rem',
             }}>
               <div style={{
@@ -123,7 +123,7 @@ export default function DonatePage() {
                 UPI Instant Payment · Zero Fees
               </div>
 
-              {/* QR Code */}
+              {/* QR Code section */}
               {settings.upi_qr_url ? (
                 <div style={{ marginBottom: '1.75rem' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -138,6 +138,7 @@ export default function DonatePage() {
                       border: '1px solid #e2e8f0',
                       padding: '0.5rem',
                       background: '#fff',
+                      margin: '0 auto',
                     }}
                   />
                   <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.75rem' }}>
@@ -146,22 +147,37 @@ export default function DonatePage() {
                 </div>
               ) : (
                 <div style={{
-                  width: 220,
-                  height: 220,
+                  maxWidth: 240,
                   margin: '0 auto 1.75rem',
+                  padding: '1.5rem 1rem',
                   borderRadius: '1rem',
-                  border: '2px dashed #e2e8f0',
+                  border: '1.5px dashed #cbd5e1',
                   background: '#f8fafc',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#94a3b8',
-                  fontSize: '0.85rem',
-                  gap: '0.5rem',
+                  gap: '0.75rem',
                 }}>
-                  <span style={{ fontSize: '2rem' }}>📱</span>
-                  <span>QR Code coming soon</span>
+                  <div style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: '50%',
+                    background: '#e0e7ff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'hsl(var(--accent))',
+                    fontSize: '1.5rem',
+                  }}>
+                    💳
+                  </div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>
+                    Scan & Pay via UPI
+                  </div>
+                  <p style={{ fontSize: '0.78rem', color: '#64748b', margin: 0 }}>
+                    Use the UPI ID below in any payment app
+                  </p>
                 </div>
               )}
 
@@ -169,22 +185,26 @@ export default function DonatePage() {
               <div style={{
                 display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
                 gap: '0.75rem',
                 background: '#f8fafc',
                 border: '1px solid #e2e8f0',
                 borderRadius: '0.75rem',
-                padding: '0.85rem 1.25rem',
+                padding: '0.75rem 1.15rem',
                 marginBottom: '1.5rem',
+                width: '100%',
+                maxWidth: 420,
               }}>
                 <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    UPI ID
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Official UPI ID
                   </div>
-                  <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#0f172a', fontFamily: 'monospace' }}>
+                  <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a', fontFamily: 'monospace' }}>
                     {settings.upi_id}
                   </div>
                   {settings.upi_name && (
-                    <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.15rem' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.1rem' }}>
                       {settings.upi_name}
                     </div>
                   )}
@@ -197,12 +217,12 @@ export default function DonatePage() {
                     border: `1px solid ${copied ? '#bbf7d0' : '#bfdbfe'}`,
                     color: copied ? '#15803d' : '#1d4ed8',
                     borderRadius: '0.5rem',
-                    padding: '0.5rem 0.85rem',
-                    fontSize: '0.825rem',
+                    padding: '0.45rem 0.85rem',
+                    fontSize: '0.8rem',
                     fontWeight: 600,
                     cursor: 'pointer',
                     transition: 'all 0.2s',
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
                     gap: '0.35rem',
                     flexShrink: 0,
@@ -218,30 +238,32 @@ export default function DonatePage() {
               <div style={{
                 background: '#f8fafc',
                 border: '1px solid #e2e8f0',
-                borderRadius: '1rem',
-                padding: '1.25rem 1.5rem',
+                borderRadius: '0.85rem',
+                padding: '1.15rem 1.25rem',
                 textAlign: 'left',
+                maxWidth: 480,
+                margin: '0 auto',
               }}>
-                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b', marginBottom: '0.85rem' }}>
-                  How to donate via UPI:
+                <div style={{ fontWeight: 600, fontSize: '0.875rem', color: '#1e293b', marginBottom: '0.75rem' }}>
+                  How to send voluntary support:
                 </div>
                 {[
-                  'Open any UPI app — Google Pay, PhonePe, Paytm, or BHIM',
-                  `Scan the QR code above, or search UPI ID: ${settings.upi_id}`,
-                  'Enter any amount you wish to contribute',
-                  'Add a note (optional) and complete the payment',
+                  'Open Google Pay, PhonePe, Paytm, or BHIM',
+                  `Enter or paste UPI ID: ${settings.upi_id}`,
+                  'Enter any voluntary amount to support our free volunteers',
+                  'Confirm and complete payment with zero fees',
                 ].map((step, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: i < 3 ? '0.65rem' : 0 }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', marginBottom: i < 3 ? '0.5rem' : 0 }}>
                     <div style={{
-                      width: 22, height: 22, borderRadius: '50%',
+                      width: 20, height: 20, borderRadius: '50%',
                       background: '#eff6ff', border: '1px solid #bfdbfe',
-                      color: '#1d4ed8', fontSize: '0.72rem', fontWeight: 700,
+                      color: '#1d4ed8', fontSize: '0.7rem', fontWeight: 700,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0, marginTop: '0.1rem',
+                      flexShrink: 0, marginTop: '0.15rem',
                     }}>
                       {i + 1}
                     </div>
-                    <span style={{ color: '#334155', fontSize: '0.875rem', lineHeight: 1.5 }}>{step}</span>
+                    <span style={{ color: '#334155', fontSize: '0.825rem', lineHeight: 1.45 }}>{step}</span>
                   </div>
                 ))}
               </div>
@@ -250,24 +272,24 @@ export default function DonatePage() {
             {/* Values */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
               {[
-                { icon: '🔒', title: 'Zero Data Stored', desc: 'We never see your UPI transaction details.' },
-                { icon: '💯', title: 'Fully Voluntary', desc: 'No pressure. The platform is always free.' },
-                { icon: '❤️', title: 'Direct Impact', desc: 'Every rupee supports free therapy access in India.' },
+                { icon: '🔒', title: 'Zero Data Stored', desc: 'We never see or store any personal banking data.' },
+                { icon: '💯', title: 'Fully Voluntary', desc: 'No paywalls. The platform will always remain free.' },
+                { icon: '❤️', title: 'Direct Impact', desc: 'Every rupee helps sustain free help and counselling for all.' },
               ].map((v) => (
                 <div
                   key={v.title}
                   className="glass"
-                  style={{ borderRadius: '1rem', padding: '1.5rem', textAlign: 'center' }}
+                  style={{ borderRadius: '1rem', padding: '1.25rem', textAlign: 'center' }}
                 >
-                  <div style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>{v.icon}</div>
-                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1e293b', marginBottom: '0.35rem' }}>{v.title}</div>
-                  <div style={{ fontSize: '0.825rem', color: '#64748b', lineHeight: 1.5 }}>{v.desc}</div>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.4rem' }}>{v.icon}</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1e293b', marginBottom: '0.25rem' }}>{v.title}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: 1.45 }}>{v.desc}</div>
                 </div>
               ))}
             </div>
 
-            <div style={{ textAlign: 'center', marginTop: '2.5rem' }}>
-              <Link href="/dashboard" className="btn-ghost" style={{ padding: '0.65rem 1.75rem', fontSize: '0.9rem' }}>
+            <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+              <Link href="/dashboard" className="btn-ghost" style={{ padding: '0.6rem 1.5rem', fontSize: '0.85rem' }}>
                 ← Back to Dashboard
               </Link>
             </div>

@@ -16,6 +16,8 @@ build/
 !**/.env.example
 !**/.env.local.example
 !**/.env.example.*
+**/mcp_config.json
+.agents/
 
 # Turbo
 .turbo

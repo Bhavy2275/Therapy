@@ -164,7 +164,7 @@ export default function TherapistPresenceBar({ initialAvailable = false }: Thera
           </div>
           <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>
             {isAvailable
-              ? 'You are visible to clients seeking instant therapy. When a client requests, you will receive an offer alert.'
+              ? 'You are visible to clients seeking immediate help. When a client requests, you will receive an offer alert.'
               : 'Toggle online when you have immediate availability to take 45-min live sessions.'}
           </p>
           {error && (
@@ -179,15 +179,18 @@ export default function TherapistPresenceBar({ initialAvailable = false }: Thera
         type="button"
         onClick={handleTogglePresence}
         disabled={loading}
-        className={isAvailable ? undefined : 'btn-primary'}
+        className={`${isAvailable ? '' : 'btn-primary'} w-full sm:w-auto`}
         style={{
-          padding: '0.65rem 1.4rem',
+          padding: '0.75rem 1.4rem',
           fontSize: '0.9rem',
           fontWeight: 600,
-          borderRadius: '0.5rem',
+          borderRadius: '0.75rem',
           cursor: loading ? 'wait' : 'pointer',
           transition: 'all 0.2s ease',
           opacity: loading ? 0.75 : 1,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           ...(isAvailable
             ? {
                 background: '#fef2f2',
