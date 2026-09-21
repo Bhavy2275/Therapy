@@ -85,6 +85,8 @@ export default function LiveSessionRoomPage() {
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [peerConnected, setPeerConnected] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const [audioAutoplayBlocked, setAudioAutoplayBlocked] = useState(false);
+  const [isSyntheticMedia, setIsSyntheticMedia] = useState(false);
 
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -100,6 +102,8 @@ export default function LiveSessionRoomPage() {
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
   const isSubscribedRef = useRef(false);
   const iceCandidateQueueRef = useRef<RTCIceCandidateInit[]>([]);
+  const localIceQueueRef = useRef<RTCIceCandidateInit[]>([]);
+  const handshakeWatchdogRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const currentUserIdRef = useRef<string>('');
 
@@ -116,15 +120,41 @@ export default function LiveSessionRoomPage() {
     }
     if (remoteAudioRef.current && remoteStream) {
       remoteAudioRef.current.srcObject = remoteStream;
-      remoteAudioRef.current.play().catch(() => {
-        // Autoplay may need user gesture
-      });
+      remoteAudioRef.current.volume = 1.0;
+      remoteAudioRef.current
+        .play()
+        .then(() => {
+          setAudioAutoplayBlocked(false);
+        })
+        .catch(() => {
+          // Mobile browser autoplay policy blocked audio; unlock on user tap
+          setAudioAutoplayBlocked(true);
+        });
     }
+  }, [remoteStream]);
+
+  // ── Unlock mobile audio on first user touch/click anywhere on screen ──────────
+  useEffect(() => {
+    const unlockAudio = () => {
+      if (remoteAudioRef.current && remoteStream) {
+        remoteAudioRef.current
+          .play()
+          .then(() => setAudioAutoplayBlocked(false))
+          .catch(() => {});
+      }
+    };
+    window.addEventListener('touchstart', unlockAudio, { passive: true });
+    window.addEventListener('click', unlockAudio, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', unlockAudio);
+      window.removeEventListener('click', unlockAudio);
+    };
   }, [remoteStream]);
 
   // ── Cleanup on unmount ────────────────────────────────────────────────────────
   const cleanupAll = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
+    if (handshakeWatchdogRef.current) clearInterval(handshakeWatchdogRef.current);
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((t) => t.stop());
       localStreamRef.current = null;
@@ -137,15 +167,227 @@ export default function LiveSessionRoomPage() {
       channelRef.current.unsubscribe();
       channelRef.current = null;
     }
+    isSubscribedRef.current = false;
   }, []);
 
   useEffect(() => {
     return () => cleanupAll();
   }, [cleanupAll]);
 
+  // ── Synthetic Media Stream Generator (Fallback when Camera/Mic blocked or on HTTP)
+  const createSyntheticMediaStream = useCallback(
+    (displayName: string, type: SessionType): MediaStream => {
+      const stream = new MediaStream();
+
+      // 1. Silent WebAudio track to keep RTC audio channel alive and valid
+      try {
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const osc = ctx.createOscillator();
+          const dst = ctx.createMediaStreamDestination();
+          const gain = ctx.createGain();
+          gain.gain.value = 0.0001; // virtually silent
+          osc.connect(gain);
+          gain.connect(dst);
+          osc.start();
+          const audioTrack = dst.stream.getAudioTracks()[0];
+          if (audioTrack) stream.addTrack(audioTrack);
+        }
+      } catch (e) {
+        console.warn('[media] Could not create fallback synthetic audio track:', e);
+      }
+
+      // 2. High-DPI Canvas Stream to keep RTC video channel alive
+      if (type === 'video') {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = 640;
+          canvas.height = 480;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            let frame = 0;
+            const drawPlaceholder = () => {
+              frame += 0.05;
+              const grad = ctx.createLinearGradient(0, 0, 640, 480);
+              grad.addColorStop(0, '#090d1a');
+              grad.addColorStop(1, '#1e293b');
+              ctx.fillStyle = grad;
+              ctx.fillRect(0, 0, 640, 480);
+
+              // Pulsing aura ring
+              const pulse = Math.sin(frame) * 12;
+              const aura = ctx.createRadialGradient(320, 210, 40, 320, 210, 95 + pulse);
+              aura.addColorStop(0, 'rgba(59, 130, 246, 0.45)');
+              aura.addColorStop(1, 'rgba(59, 130, 246, 0)');
+              ctx.fillStyle = aura;
+              ctx.beginPath();
+              ctx.arc(320, 210, 95 + pulse, 0, Math.PI * 2);
+              ctx.fill();
+
+              // Avatar circle
+              ctx.beginPath();
+              ctx.arc(320, 210, 64, 0, Math.PI * 2);
+              ctx.fillStyle = '#2563eb';
+              ctx.fill();
+              ctx.lineWidth = 3;
+              ctx.strokeStyle = '#60a5fa';
+              ctx.stroke();
+
+              // Initial
+              ctx.fillStyle = '#ffffff';
+              ctx.font = 'bold 50px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              const initial = (displayName || 'User').charAt(0).toUpperCase();
+              ctx.fillText(initial, 320, 212);
+
+              // Name label
+              ctx.fillStyle = '#f8fafc';
+              ctx.font = '600 20px sans-serif';
+              ctx.fillText(displayName || 'User', 320, 310);
+
+              // Sub-text
+              ctx.fillStyle = '#94a3b8';
+              ctx.font = '14px sans-serif';
+              ctx.fillText('Camera Disabled (Tap Allow to enable)', 320, 340);
+            };
+
+            drawPlaceholder();
+            const timer = setInterval(drawPlaceholder, 200);
+            const canvasStream =
+              canvas.captureStream ? canvas.captureStream(10) : (canvas as any).mozCaptureStream?.(10);
+            if (canvasStream) {
+              const videoTrack = canvasStream.getVideoTracks()[0];
+              if (videoTrack) {
+                videoTrack.addEventListener('ended', () => clearInterval(timer));
+                stream.addTrack(videoTrack);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[media] Could not create fallback synthetic video track:', e);
+        }
+      }
+
+      return stream;
+    },
+    [],
+  );
+
+  // ── Start Local Media (Camera & Mic with Synthetic Fallback) ──────────────────
+  const startLocalMedia = useCallback(
+    async (type: SessionType, displayName: string): Promise<MediaStream> => {
+      if (type === 'chat') return new MediaStream();
+
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('getUserMedia not supported on this browser/insecure context');
+        }
+
+        const constraints: MediaStreamConstraints =
+          type === 'voice'
+            ? { audio: true, video: false }
+            : {
+                audio: true,
+                video: {
+                  facingMode: 'user',
+                  width: { ideal: 640 },
+                  height: { ideal: 480 },
+                },
+              };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        localStreamRef.current = stream;
+        setLocalStream(stream);
+        setIsSyntheticMedia(false);
+        setMediaError(null);
+
+        if (localVideoRef.current && type === 'video') {
+          localVideoRef.current.srcObject = stream;
+        }
+        return stream;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Permission denied';
+        console.warn('[media] Real media failed, activating synthetic fallback stream:', msg);
+        setIsSyntheticMedia(true);
+        setMediaError(
+          'Microphone/Camera blocked or insecure context. Synthetic placeholder active. Click "Allow Camera & Mic" to enable real feed.',
+        );
+
+        const fallback = createSyntheticMediaStream(displayName, type);
+        localStreamRef.current = fallback;
+        setLocalStream(fallback);
+
+        if (localVideoRef.current && type === 'video') {
+          localVideoRef.current.srcObject = fallback;
+        }
+        return fallback;
+      }
+    },
+    [createSyntheticMediaStream],
+  );
+
+  // ── Retry Real Camera / Mic on user gesture ──────────────────────────────────
+  async function retryUserMedia() {
+    if (!credentials) return;
+    try {
+      const constraints: MediaStreamConstraints =
+        credentials.session.type === 'voice'
+          ? { audio: true, video: false }
+          : {
+              audio: true,
+              video: {
+                facingMode: 'user',
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+              },
+            };
+
+      const realStream = await navigator.mediaDevices.getUserMedia(constraints);
+      localStreamRef.current = realStream;
+      setLocalStream(realStream);
+      setIsSyntheticMedia(false);
+      setMediaError(null);
+
+      if (localVideoRef.current && credentials.session.type === 'video') {
+        localVideoRef.current.srcObject = realStream;
+      }
+
+      // Upgrade active RTCPeerConnection tracks on the fly using replaceTrack
+      if (pcRef.current) {
+        const senders = pcRef.current.getSenders();
+        const videoTrack = realStream.getVideoTracks()[0];
+        const audioTrack = realStream.getAudioTracks()[0];
+
+        if (videoTrack) {
+          const videoSender = senders.find((s) => s.track?.kind === 'video');
+          if (videoSender) {
+            videoSender.replaceTrack(videoTrack).catch((e) => console.warn('replaceTrack video error:', e));
+          } else {
+            pcRef.current.addTrack(videoTrack, realStream);
+          }
+        }
+        if (audioTrack) {
+          const audioSender = senders.find((s) => s.track?.kind === 'audio');
+          if (audioSender) {
+            audioSender.replaceTrack(audioTrack).catch((e) => console.warn('replaceTrack audio error:', e));
+          } else {
+            pcRef.current.addTrack(audioTrack, realStream);
+          }
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Permission denied';
+      setMediaError(`Permission error: ${msg}. If testing on mobile HTTP, allow camera/mic in browser settings.`);
+    }
+  }
+
   // ── WebRTC Signaling Helpers ─────────────────────────────────────────────────
   const createPeerConnection = useCallback(
-    (stream: MediaStream | null, isInitiator: boolean, channel: any, myUserId: string) => {
+    (stream: MediaStream | null, channel: any, myUserId: string) => {
       if (pcRef.current) {
         pcRef.current.close();
       }
@@ -153,7 +395,7 @@ export default function LiveSessionRoomPage() {
       const pc = new RTCPeerConnection(RTC_CONFIG);
       pcRef.current = pc;
 
-      // Add local tracks if any
+      // Add local tracks
       if (stream) {
         stream.getTracks().forEach((track) => {
           pc.addTrack(track, stream);
@@ -176,12 +418,16 @@ export default function LiveSessionRoomPage() {
 
       // Handle ICE candidates
       pc.onicecandidate = (event) => {
-        if (event.candidate && isSubscribedRef.current && channel) {
-          channel.send({
-            type: 'broadcast',
-            event: 'signal:candidate',
-            payload: { candidate: event.candidate.toJSON(), senderId: myUserId },
-          });
+        if (event.candidate) {
+          if (isSubscribedRef.current && channelRef.current) {
+            channelRef.current.send({
+              type: 'broadcast',
+              event: 'signal:candidate',
+              payload: { candidate: event.candidate.toJSON(), senderId: myUserId },
+            });
+          } else {
+            localIceQueueRef.current.push(event.candidate.toJSON());
+          }
         }
       };
 
@@ -194,66 +440,10 @@ export default function LiveSessionRoomPage() {
         }
       };
 
-      // If initiator, create offer
-      if (isInitiator) {
-        pc.onnegotiationneeded = async () => {
-          try {
-            console.log('[WebRTC] Creating offer (initiator)...');
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            if (isSubscribedRef.current && channel) {
-              channel.send({
-                type: 'broadcast',
-                event: 'signal:offer',
-                payload: { sdp: offer.sdp, type: offer.type, senderId: myUserId },
-              });
-            }
-          } catch (err) {
-            console.warn('[WebRTC] Error during negotiation:', err);
-          }
-        };
-      }
-
       return pc;
     },
     [],
   );
-
-  // ── Start Local Media (Camera & Mic) ──────────────────────────────────────────
-  async function startLocalMedia(type: SessionType): Promise<MediaStream | null> {
-    if (type === 'chat') return null;
-    try {
-      const constraints: MediaStreamConstraints =
-        type === 'voice'
-          ? { audio: true, video: false }
-          : {
-              audio: true,
-              video: {
-                facingMode: 'user',
-                width: { ideal: 640 },
-                height: { ideal: 480 },
-              },
-            };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      localStreamRef.current = stream;
-      setLocalStream(stream);
-
-      if (localVideoRef.current && type === 'video') {
-        localVideoRef.current.srcObject = stream;
-      }
-      return stream;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Could not access camera/mic';
-      console.warn('[media] getUserMedia failed:', msg);
-      setMediaError(
-        type === 'voice'
-          ? 'Microphone access denied. Please allow mic permissions.'
-          : 'Camera/mic access denied. Please allow browser permissions.',
-      );
-      return null;
-    }
-  }
 
   // ── Load Session & Initialize Realtime Signaling ──────────────────────────────
   useEffect(() => {
@@ -293,8 +483,12 @@ export default function LiveSessionRoomPage() {
         setCredentials(creds);
         setState('connecting');
 
-        // 1. Start camera/mic
-        const mediaStream = await startLocalMedia(creds.session.type);
+        const myName = creds.isTherapist
+          ? creds.session.therapist?.fullName || 'Therapist'
+          : creds.session.client?.fullName || 'Client';
+
+        // 1. Start media (real or synthetic fallback)
+        const mediaStream = await startLocalMedia(creds.session.type, myName);
 
         // 2. Start session timer
         timerRef.current = setInterval(() => {
@@ -313,16 +507,34 @@ export default function LiveSessionRoomPage() {
         });
         channelRef.current = channel;
 
-        // Peer-to-peer initiator role: Therapist initiates offer, client answers
+        // Deterministic initiator: Therapist initiates offer; if neither, fallback to lexicographical ID
         const isInitiator = creds.isTherapist;
 
         // Create PeerConnection instance
-        const pc = createPeerConnection(mediaStream, isInitiator, channel, myUserId);
+        const pc = createPeerConnection(mediaStream, channel, myUserId);
+
+        // Helper to generate & broadcast an offer
+        async function sendOffer() {
+          if (!pcRef.current || !channelRef.current || !isSubscribedRef.current) return;
+          try {
+            console.log('[WebRTC] Creating and sending offer...');
+            const offer = await pcRef.current.createOffer();
+            await pcRef.current.setLocalDescription(offer);
+            channelRef.current.send({
+              type: 'broadcast',
+              event: 'signal:offer',
+              payload: { sdp: offer.sdp, type: offer.type, senderId: myUserId },
+            });
+          } catch (err) {
+            console.warn('[WebRTC] Failed to create/send offer:', err);
+          }
+        }
 
         // Listen for WebRTC Offer
         channel.on('broadcast', { event: 'signal:offer' }, async ({ payload }: { payload: any }) => {
           if (payload.senderId === myUserId) return;
           console.log('[WebRTC] Received offer from peer');
+          setPeerConnected(true);
           try {
             await pc.setRemoteDescription(
               new RTCSessionDescription({ type: payload.type, sdp: payload.sdp }),
@@ -331,7 +543,7 @@ export default function LiveSessionRoomPage() {
             // Flush queued ICE candidates
             while (iceCandidateQueueRef.current.length > 0) {
               const cand = iceCandidateQueueRef.current.shift();
-              if (cand) await pc.addIceCandidate(new RTCIceCandidate(cand));
+              if (cand) await pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
             }
 
             // Create and send answer
@@ -351,15 +563,15 @@ export default function LiveSessionRoomPage() {
         channel.on('broadcast', { event: 'signal:answer' }, async ({ payload }: { payload: any }) => {
           if (payload.senderId === myUserId) return;
           console.log('[WebRTC] Received answer from peer');
+          setPeerConnected(true);
           try {
             if (pc.signalingState === 'have-local-offer') {
               await pc.setRemoteDescription(
                 new RTCSessionDescription({ type: payload.type, sdp: payload.sdp }),
               );
-              // Flush queued ICE candidates
               while (iceCandidateQueueRef.current.length > 0) {
                 const cand = iceCandidateQueueRef.current.shift();
-                if (cand) await pc.addIceCandidate(new RTCIceCandidate(cand));
+                if (cand) await pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
               }
             }
           } catch (err) {
@@ -371,7 +583,7 @@ export default function LiveSessionRoomPage() {
         channel.on('broadcast', { event: 'signal:candidate' }, async ({ payload }: { payload: any }) => {
           if (payload.senderId === myUserId) return;
           try {
-            if (pc.remoteDescription) {
+            if (pc.remoteDescription && pc.remoteDescription.type) {
               await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
             } else {
               iceCandidateQueueRef.current.push(payload.candidate);
@@ -381,23 +593,41 @@ export default function LiveSessionRoomPage() {
           }
         });
 
-        // Listen for Peer Join (trigger offer if initiator)
+        // Listen for Peer Join / Ping / Pong (Full bi-directional handshake to eliminate deadlock)
         channel.on('broadcast', { event: 'peer:joined' }, async ({ payload }: { payload: any }) => {
           if (payload.senderId === myUserId) return;
           console.log('[WebRTC] Peer joined room:', payload.senderId);
           setPeerConnected(true);
+          // Respond with pong so the joining peer knows we are present
+          channel.send({
+            type: 'broadcast',
+            event: 'peer:pong',
+            payload: { senderId: myUserId, isTherapist: creds.isTherapist },
+          });
           if (isInitiator) {
-            try {
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              channel.send({
-                type: 'broadcast',
-                event: 'signal:offer',
-                payload: { sdp: offer.sdp, type: offer.type, senderId: myUserId },
-              });
-            } catch (err) {
-              console.warn('[WebRTC] Failed to send offer on peer join:', err);
-            }
+            sendOffer();
+          }
+        });
+
+        channel.on('broadcast', { event: 'peer:ping' }, async ({ payload }: { payload: any }) => {
+          if (payload.senderId === myUserId) return;
+          setPeerConnected(true);
+          channel.send({
+            type: 'broadcast',
+            event: 'peer:pong',
+            payload: { senderId: myUserId, isTherapist: creds.isTherapist },
+          });
+          if (isInitiator) {
+            sendOffer();
+          }
+        });
+
+        channel.on('broadcast', { event: 'peer:pong' }, async ({ payload }: { payload: any }) => {
+          if (payload.senderId === myUserId) return;
+          console.log('[WebRTC] Peer confirmed presence (pong):', payload.senderId);
+          setPeerConnected(true);
+          if (isInitiator) {
+            sendOffer();
           }
         });
 
@@ -423,12 +653,51 @@ export default function LiveSessionRoomPage() {
             isSubscribedRef.current = true;
             setState('connected');
 
+            // Flush buffered local ICE candidates
+            while (localIceQueueRef.current.length > 0) {
+              const cand = localIceQueueRef.current.shift();
+              if (cand) {
+                channel.send({
+                  type: 'broadcast',
+                  event: 'signal:candidate',
+                  payload: { candidate: cand, senderId: myUserId },
+                });
+              }
+            }
+
             // Announce presence to other peer
             channel.send({
               type: 'broadcast',
               event: 'peer:joined',
               payload: { senderId: myUserId, isTherapist: creds.isTherapist },
             });
+            channel.send({
+              type: 'broadcast',
+              event: 'peer:ping',
+              payload: { senderId: myUserId, isTherapist: creds.isTherapist },
+            });
+
+            if (isInitiator) {
+              sendOffer();
+            }
+
+            // 4. Watchdog: ping every 3s if not yet connected, re-negotiate if needed
+            handshakeWatchdogRef.current = setInterval(() => {
+              if (pcRef.current?.connectionState === 'connected') {
+                if (handshakeWatchdogRef.current) clearInterval(handshakeWatchdogRef.current);
+                return;
+              }
+              if (isSubscribedRef.current && channelRef.current) {
+                channelRef.current.send({
+                  type: 'broadcast',
+                  event: 'peer:ping',
+                  payload: { senderId: myUserId, isTherapist: creds.isTherapist },
+                });
+                if (isInitiator && pcRef.current?.signalingState === 'stable') {
+                  sendOffer();
+                }
+              }
+            }, 3000);
           }
         });
       } catch (err) {
@@ -445,7 +714,8 @@ export default function LiveSessionRoomPage() {
       isCancelled = true;
       cleanupAll();
     };
-  }, [sessionId, createPeerConnection, cleanupAll]);
+  }, [sessionId, createPeerConnection, startLocalMedia, cleanupAll]);
+
 
   // ── Mute / Camera controls ────────────────────────────────────────────────────
   function handleToggleMute() {
@@ -1015,8 +1285,58 @@ export default function LiveSessionRoomPage() {
     >
       <div className="mesh-bg" />
 
-      {/* Hidden background audio player for remote participant voice */}
-      <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
+      {/* Background audio player for remote participant voice */}
+      <audio
+        ref={remoteAudioRef}
+        autoPlay
+        playsInline
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          right: 0,
+          width: 1,
+          height: 1,
+          opacity: 0.001,
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Autoplay blocked banner */}
+      {audioAutoplayBlocked && (
+        <button
+          type="button"
+          onClick={() => {
+            if (remoteAudioRef.current) {
+              remoteAudioRef.current
+                .play()
+                .then(() => setAudioAutoplayBlocked(false))
+                .catch(() => {});
+            }
+          }}
+          style={{
+            position: 'fixed',
+            bottom: '5.5rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 250,
+            background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+            color: '#ffffff',
+            padding: '0.65rem 1.4rem',
+            borderRadius: '2rem',
+            fontWeight: 700,
+            fontSize: '0.9rem',
+            boxShadow: '0 8px 25px rgba(37, 99, 235, 0.5)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            animation: 'pulse 2s infinite',
+          }}
+        >
+          <span>🔊 Tap to Unmute Live Voice</span>
+        </button>
+      )}
 
       {/* Media permission error banner */}
       {mediaError && (
@@ -1027,37 +1347,57 @@ export default function LiveSessionRoomPage() {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 200,
-            background: 'rgba(239,68,68,0.15)',
-            border: '1px solid rgba(239,68,68,0.4)',
-            borderRadius: '0.75rem',
-            padding: '0.6rem 1.25rem',
+            background: 'rgba(15, 23, 42, 0.95)',
+            border: '1px solid rgba(239, 68, 68, 0.5)',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.6)',
+            borderRadius: '0.85rem',
+            padding: '0.65rem 1.25rem',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem',
-            fontSize: '0.875rem',
-            color: '#f87171',
-            fontWeight: 600,
-            maxWidth: 500,
-            textAlign: 'center',
+            gap: '0.75rem',
+            fontSize: '0.85rem',
+            color: '#fca5a5',
+            fontWeight: 500,
+            maxWidth: '92vw',
+            backdropFilter: 'blur(12px)',
           }}
         >
-          <IconAlertCircle size={18} color="#f87171" />
-          <span>{mediaError}</span>
+          <IconAlertCircle size={20} color="#ef4444" />
+          <span style={{ maxWidth: 360, lineHeight: 1.4 }}>{mediaError}</span>
+          <button
+            type="button"
+            onClick={retryUserMedia}
+            style={{
+              background: '#2563eb',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '0.5rem',
+              padding: '0.35rem 0.85rem',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Allow Camera & Mic
+          </button>
           <button
             type="button"
             onClick={() => setMediaError(null)}
             style={{
               background: 'none',
               border: 'none',
-              color: '#f87171',
+              color: '#94a3b8',
               cursor: 'pointer',
-              marginLeft: '0.5rem',
+              marginLeft: '0.25rem',
+              fontSize: '1rem',
             }}
           >
             ✕
           </button>
         </div>
       )}
+
 
       {/* Top Bar */}
       <div

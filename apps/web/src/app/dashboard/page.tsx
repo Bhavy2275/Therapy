@@ -6,6 +6,7 @@ import TherapistPresenceBar from '@/components/TherapistPresenceBar';
 import IncomingOfferModal from '@/components/IncomingOfferModal';
 import ClientSosButton from '@/components/ClientSosButton';
 import SignOutButton from '@/components/SignOutButton';
+import DashCardClient from '@/components/DashCardClient';
 import {
   IconBolt,
   IconCalendar,
@@ -548,14 +549,7 @@ function AdminDashboard() {
 
 // ─── DashCard ─────────────────────────────────────────────────────────────────
 
-function DashCard({
-  icon,
-  title,
-  desc,
-  badge,
-  href,
-  badgeColor = '#4b5563',
-}: {
+function DashCard(props: {
   icon: React.ReactNode;
   title: string;
   desc: string;
@@ -563,37 +557,5 @@ function DashCard({
   href?: string;
   badgeColor?: string;
 }) {
-  const content = (
-    <div className="glass" style={{
-      borderRadius: '1rem', padding: '1.75rem',
-      opacity: href ? 1 : 0.75,
-      transition: 'all 0.2s',
-      height: '100%',
-      cursor: href ? 'pointer' : 'default',
-    }}>
-      <div style={{ marginBottom: '0.75rem' }}>{icon}</div>
-      <h2 style={{ fontWeight: 600, marginBottom: '0.4rem', fontSize: '1rem', color: '#1e293b' }}>{title}</h2>
-      <p style={{ color: '#64748b', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '1rem' }}>{desc}</p>
-      <span style={{
-        display: 'inline-block',
-        background: href ? `${badgeColor}15` : '#f1f5f9',
-        border: `1px solid ${href ? `${badgeColor}40` : '#e2e8f0'}`,
-        borderRadius: '0.35rem', padding: '0.2rem 0.6rem',
-        fontSize: '0.75rem', color: href ? badgeColor : '#64748b',
-        fontWeight: href ? 600 : 400,
-      }}>
-        {badge}
-      </span>
-    </div>
-  );
-
-  if (href) {
-    return (
-      <Link href={href} style={{ textDecoration: 'none' }}>
-        {content}
-      </Link>
-    );
-  }
-
-  return content;
+  return <DashCardClient {...props} />;
 }
