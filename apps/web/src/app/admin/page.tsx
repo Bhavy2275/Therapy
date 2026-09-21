@@ -493,17 +493,18 @@ export default function AdminPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'hsl(var(--secondary))' }}>
-      {/* Toast Alert */}
+      {/* Toast Alert - mobile safe */}
       {toast && (
         <div
           style={{
             position: 'fixed',
-            top: '1.5rem',
-            right: '1.5rem',
+            top: '1rem',
+            left: '1rem',
+            right: '1rem',
             zIndex: 9999,
             background: toast.type === 'success' ? '#059669' : '#dc2626',
             color: '#ffffff',
-            padding: '0.75rem 1.25rem',
+            padding: '0.75rem 1rem',
             borderRadius: '0.65rem',
             boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
             fontSize: '0.875rem',
@@ -511,14 +512,16 @@ export default function AdminPage() {
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
+            maxWidth: 500,
+            margin: '0 auto',
           }}
         >
           {toast.type === 'success' ? <IconCheck size={18} /> : <IconAlertCircle size={18} />}
-          <span>{toast.text}</span>
+          <span style={{ flex: 1 }}>{toast.text}</span>
         </div>
       )}
 
-      {/* Admin Navbar */}
+      {/* Admin Navbar - mobile responsive */}
       <nav
         style={{
           borderBottom: '1px solid hsl(var(--border))',
@@ -533,80 +536,83 @@ export default function AdminPage() {
           style={{
             maxWidth: 1200,
             margin: '0 auto',
-            padding: '0 1.5rem',
+            padding: '0 1rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            height: '4rem',
+            height: '3.5rem',
+            gap: '0.5rem',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span style={{ fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-body)' }}>
-              <span className="gradient-text">Jarwis</span>{' '}
-              <span style={{ color: 'hsl(var(--foreground))' }}>Help Me!</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+            <span style={{ fontSize: '1.1rem', fontWeight: 800, fontFamily: 'var(--font-body)', whiteSpace: 'nowrap' }}>
+              <span className="gradient-text">Jarwis</span>
             </span>
             <span
               style={{
                 background: 'hsl(var(--accent) / 0.1)',
                 border: '1px solid hsl(var(--accent) / 0.25)',
                 color: 'hsl(var(--accent))',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                padding: '0.15rem 0.6rem',
-                borderRadius: '0.35rem',
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                padding: '0.1rem 0.45rem',
+                borderRadius: '0.3rem',
                 textTransform: 'uppercase',
                 letterSpacing: '0.04em',
+                flexShrink: 0,
               }}
             >
-              Admin Portal
+              Admin
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Link
               href="/dashboard"
               className="btn-ghost"
-              style={{ padding: '0.45rem 1rem', fontSize: '0.85rem', color: '#64748b' }}
+              style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', color: '#64748b', whiteSpace: 'nowrap' }}
             >
-              Dashboard View
+              Dashboard
             </Link>
             <SignOutButton
               className="btn-ghost"
-              style={{ padding: '0.45rem 1rem', fontSize: '0.85rem', color: '#64748b' }}
+              style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', color: '#64748b' }}
             />
           </div>
         </div>
       </nav>
 
-      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '2.5rem 1.5rem 5rem' }}>
+      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '1.25rem 0.85rem 5rem' }}>
         {/* Header */}
-        <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.4rem', color: 'hsl(var(--foreground))', fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h1 style={{ fontSize: 'clamp(1.4rem, 5vw, 2rem)', fontWeight: 700, marginBottom: '0.35rem', color: 'hsl(var(--foreground))', fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>
             Admin <span style={{ color: 'hsl(var(--accent))' }}>Control Centre</span>
           </h1>
-          <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
-            Manage therapist applications, delete user accounts, and configure UPI donation settings.
+          <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
+            Manage therapist applications, users, and donation settings.
           </p>
         </div>
 
-        {/* Top-Level Section Tabs */}
+        {/* Top-Level Section Tabs - mobile scrollable pill row */}
         <div
           style={{
             display: 'flex',
-            gap: '0.75rem',
-            marginBottom: '2rem',
-            flexWrap: 'wrap',
+            gap: '0.5rem',
+            marginBottom: '1.5rem',
             borderBottom: '1px solid #e2e8f0',
             paddingBottom: '0.75rem',
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
           }}
         >
           <button
             type="button"
             onClick={() => setMainSection('therapists')}
             style={{
-              padding: '0.6rem 1.25rem',
+              padding: '0.5rem 1rem',
               borderRadius: '0.55rem',
-              fontSize: '0.9rem',
+              fontSize: '0.82rem',
               fontWeight: 600,
               cursor: 'pointer',
               border: mainSection === 'therapists' ? 'none' : '1px solid #e2e8f0',
@@ -614,19 +620,21 @@ export default function AdminPage() {
               color: mainSection === 'therapists' ? '#ffffff' : '#64748b',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '0.5rem',
+              gap: '0.4rem',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
               boxShadow: mainSection === 'therapists' ? '0 2px 8px rgba(37, 99, 235, 0.2)' : 'none',
             }}
           >
-            <span>Therapist Applications</span>
+            <span>Therapists</span>
             {counts.pending > 0 && (
               <span
                 style={{
                   background: mainSection === 'therapists' ? '#ffffff' : '#ef4444',
                   color: mainSection === 'therapists' ? '#2563eb' : '#ffffff',
                   borderRadius: '1rem',
-                  padding: '0.1rem 0.5rem',
-                  fontSize: '0.75rem',
+                  padding: '0.05rem 0.45rem',
+                  fontSize: '0.72rem',
                   fontWeight: 700,
                 }}
               >
@@ -642,9 +650,9 @@ export default function AdminPage() {
               loadUsers();
             }}
             style={{
-              padding: '0.6rem 1.25rem',
+              padding: '0.5rem 1rem',
               borderRadius: '0.55rem',
-              fontSize: '0.9rem',
+              fontSize: '0.82rem',
               fontWeight: 600,
               cursor: 'pointer',
               border: mainSection === 'users' ? 'none' : '1px solid #e2e8f0',
@@ -652,20 +660,22 @@ export default function AdminPage() {
               color: mainSection === 'users' ? '#ffffff' : '#64748b',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '0.5rem',
+              gap: '0.4rem',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
               boxShadow: mainSection === 'users' ? '0 2px 8px rgba(37, 99, 235, 0.2)' : 'none',
             }}
           >
-            <IconUser size={16} />
-            <span>All Users &amp; Deletion</span>
+            <IconUser size={14} />
+            <span>All Users</span>
             {usersList.length > 0 && (
               <span
                 style={{
                   background: mainSection === 'users' ? 'rgba(255,255,255,0.25)' : '#f1f5f9',
                   color: mainSection === 'users' ? '#ffffff' : '#475569',
                   borderRadius: '1rem',
-                  padding: '0.1rem 0.5rem',
-                  fontSize: '0.75rem',
+                  padding: '0.05rem 0.45rem',
+                  fontSize: '0.72rem',
                   fontWeight: 600,
                 }}
               >
@@ -678,9 +688,9 @@ export default function AdminPage() {
             type="button"
             onClick={() => setMainSection('upi')}
             style={{
-              padding: '0.6rem 1.25rem',
+              padding: '0.5rem 1rem',
               borderRadius: '0.55rem',
-              fontSize: '0.9rem',
+              fontSize: '0.82rem',
               fontWeight: 600,
               cursor: 'pointer',
               border: mainSection === 'upi' ? 'none' : '1px solid #e2e8f0',
@@ -688,12 +698,14 @@ export default function AdminPage() {
               color: mainSection === 'upi' ? '#ffffff' : '#64748b',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '0.5rem',
+              gap: '0.4rem',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
               boxShadow: mainSection === 'upi' ? '0 2px 8px rgba(37, 99, 235, 0.2)' : 'none',
             }}
           >
-            <IconQrCode size={16} />
-            <span>Donation UPI Settings</span>
+            <IconQrCode size={14} />
+            <span>UPI / Donate</span>
           </button>
         </div>
 
@@ -743,27 +755,29 @@ export default function AdminPage() {
               />
             </div>
 
-            {/* Filter Tabs & Search */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '1rem',
-                marginBottom: '1.5rem',
-              }}
-            >
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {/* Filter Tabs & Search - mobile stacked */}
+            <div style={{ marginBottom: '1.25rem' }}>
+              {/* Scrollable filter pill row */}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '0.4rem',
+                  overflowX: 'auto',
+                  WebkitOverflowScrolling: 'touch',
+                  scrollbarWidth: 'none',
+                  paddingBottom: '0.5rem',
+                  marginBottom: '0.75rem',
+                }}
+              >
                 {(['pending', 'approved', 'rejected', 'suspended', 'all'] as const).map((tab) => (
                   <button
                     key={tab}
                     type="button"
                     onClick={() => setActiveTab(tab)}
                     style={{
-                      padding: '0.45rem 1rem',
+                      padding: '0.4rem 0.9rem',
                       borderRadius: '0.5rem',
-                      fontSize: '0.85rem',
+                      fontSize: '0.8rem',
                       fontWeight: 600,
                       cursor: 'pointer',
                       border: activeTab === tab ? '1px solid #3b82f6' : '1px solid #e2e8f0',
@@ -771,14 +785,17 @@ export default function AdminPage() {
                       color: activeTab === tab ? '#2563eb' : '#64748b',
                       textTransform: 'capitalize',
                       transition: 'all 0.15s',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
                     }}
                   >
-                    {tab === 'all' ? 'All Applicants' : tab}
+                    {tab === 'all' ? 'All' : tab}
                   </button>
                 ))}
               </div>
 
-              <div style={{ position: 'relative', minWidth: 260 }}>
+              {/* Full-width search */}
+              <div style={{ position: 'relative', width: '100%' }}>
                 <input
                   type="text"
                   placeholder="Search by name, email, license..."
@@ -902,27 +919,28 @@ export default function AdminPage() {
               />
             </div>
 
-            {/* Filter and Search Bar */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '1rem',
-                marginBottom: '1.5rem',
-              }}
-            >
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {/* Filter and Search Bar - mobile stacked */}
+            <div style={{ marginBottom: '1.25rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '0.4rem',
+                  overflowX: 'auto',
+                  WebkitOverflowScrolling: 'touch',
+                  scrollbarWidth: 'none',
+                  paddingBottom: '0.5rem',
+                  marginBottom: '0.75rem',
+                }}
+              >
                 {(['all', 'client', 'therapist', 'admin'] as const).map((role) => (
                   <button
                     key={role}
                     type="button"
                     onClick={() => setUserRoleFilter(role)}
                     style={{
-                      padding: '0.45rem 1rem',
+                      padding: '0.4rem 0.9rem',
                       borderRadius: '0.5rem',
-                      fontSize: '0.85rem',
+                      fontSize: '0.8rem',
                       fontWeight: 600,
                       cursor: 'pointer',
                       border: userRoleFilter === role ? '1px solid #3b82f6' : '1px solid #e2e8f0',
@@ -930,17 +948,19 @@ export default function AdminPage() {
                       color: userRoleFilter === role ? '#2563eb' : '#64748b',
                       textTransform: 'capitalize',
                       transition: 'all 0.15s',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
                     }}
                   >
-                    {role === 'all' ? 'All Roles' : `${role}s`}
+                    {role === 'all' ? 'All' : `${role}s`}
                   </button>
                 ))}
               </div>
 
-              <div style={{ position: 'relative', minWidth: 280 }}>
+              <div style={{ position: 'relative', width: '100%' }}>
                 <input
                   type="text"
-                  placeholder="Search user by name or email..."
+                  placeholder="Search by name or email..."
                   value={userSearchQuery}
                   onChange={(e) => setUserSearchQuery(e.target.value)}
                   className="input"
@@ -992,168 +1012,125 @@ export default function AdminPage() {
                 </p>
               </div>
             ) : (
-              <div
-                style={{
-                  background: '#ffffff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '1rem',
-                  overflow: 'hidden',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
-                }}
-              >
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead>
-                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                          User Profile
-                        </th>
-                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                          Role &amp; Status
-                        </th>
-                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                          Timezone
-                        </th>
-                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                          Registered
-                        </th>
-                        <th style={{ padding: '0.85rem 1.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>
-                          Admin Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredUsers.map((u) => {
-                        const roleColor = {
-                          client: { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
-                          therapist: { bg: '#f5f3ff', text: '#6d28d9', border: '#ddd6fe' },
-                          admin: { bg: '#fef3c7', text: '#b45309', border: '#fde68a' },
-                        }[u.role] || { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' };
+              /* Mobile-first card list instead of table */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {filteredUsers.map((u) => {
+                  const roleColor = {
+                    client: { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
+                    therapist: { bg: '#f5f3ff', text: '#6d28d9', border: '#ddd6fe' },
+                    admin: { bg: '#fef3c7', text: '#b45309', border: '#fde68a' },
+                  }[u.role] || { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' };
 
-                        return (
-                          <tr
-                            key={u.id}
+                  return (
+                    <div
+                      key={u.id}
+                      style={{
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '0.85rem',
+                        padding: '1rem',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
+                        {/* Avatar + Info */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                          <div
                             style={{
-                              borderBottom: '1px solid #f1f5f9',
-                              transition: 'background 0.15s',
+                              width: 40,
+                              height: 40,
+                              borderRadius: '50%',
+                              background: '#e0e7ff',
+                              color: '#4338ca',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 700,
+                              fontSize: '1rem',
+                              flexShrink: 0,
                             }}
                           >
-                            {/* Profile */}
-                            <td style={{ padding: '1rem 1.25rem' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                <div
-                                  style={{
-                                    width: 38,
-                                    height: 38,
-                                    borderRadius: '50%',
-                                    background: '#e0e7ff',
-                                    color: '#4338ca',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontWeight: 700,
-                                    fontSize: '0.9rem',
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {u.fullName.charAt(0).toUpperCase() || 'U'}
-                                </div>
-                                <div>
-                                  <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.9rem' }}>
-                                    {u.fullName}
-                                  </div>
-                                  <div style={{ color: '#64748b', fontSize: '0.8rem' }}>{u.email}</div>
-                                </div>
-                              </div>
-                            </td>
+                            {u.fullName.charAt(0).toUpperCase() || 'U'}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {u.fullName}
+                            </div>
+                            <div style={{ color: '#64748b', fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {u.email}
+                            </div>
+                          </div>
+                        </div>
 
-                            {/* Role */}
-                            <td style={{ padding: '1rem 1.25rem' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                <span
-                                  style={{
-                                    background: roleColor.bg,
-                                    color: roleColor.text,
-                                    border: `1px solid ${roleColor.border}`,
-                                    padding: '0.2rem 0.6rem',
-                                    borderRadius: '1rem',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 700,
-                                    textTransform: 'capitalize',
-                                  }}
-                                >
-                                  {u.role}
-                                </span>
-                                {u.therapistStatus && (
-                                  <span
-                                    style={{
-                                      fontSize: '0.7rem',
-                                      padding: '0.15rem 0.45rem',
-                                      borderRadius: '0.35rem',
-                                      background: u.therapistStatus === 'approved' ? '#ecfdf5' : '#fff7ed',
-                                      color: u.therapistStatus === 'approved' ? '#059669' : '#c2410c',
-                                      fontWeight: 600,
-                                      textTransform: 'capitalize',
-                                    }}
-                                  >
-                                    {u.therapistStatus}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
+                        {/* Delete button */}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setUserToDelete({
+                              id: u.id,
+                              fullName: u.fullName,
+                              email: u.email,
+                              role: u.role,
+                            })
+                          }
+                          style={{
+                            padding: '0.35rem 0.7rem',
+                            borderRadius: '0.45rem',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            background: '#fef2f2',
+                            border: '1px solid #fecaca',
+                            color: '#dc2626',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <IconTrash size={13} color="#dc2626" />
+                          <span style={{ display: 'none' }}>Delete</span>
+                        </button>
+                      </div>
 
-                            {/* Timezone */}
-                            <td style={{ padding: '1rem 1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
-                              {u.timezone}
-                            </td>
-
-                            {/* Registered */}
-                            <td style={{ padding: '1rem 1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
-                              {new Date(u.createdAt).toLocaleDateString(undefined, {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                              })}
-                            </td>
-
-                            {/* Delete Action */}
-                            <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setUserToDelete({
-                                    id: u.id,
-                                    fullName: u.fullName,
-                                    email: u.email,
-                                    role: u.role,
-                                  })
-                                }
-                                style={{
-                                  padding: '0.4rem 0.85rem',
-                                  borderRadius: '0.45rem',
-                                  fontSize: '0.8rem',
-                                  fontWeight: 600,
-                                  background: '#fef2f2',
-                                  border: '1px solid #fecaca',
-                                  color: '#dc2626',
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.35rem',
-                                  transition: 'all 0.15s',
-                                }}
-                                title="Delete User Account"
-                              >
-                                <IconTrash size={14} color="#dc2626" />
-                                <span>Delete User</span>
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                      {/* Meta row */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.65rem' }}>
+                        <span
+                          style={{
+                            background: roleColor.bg,
+                            color: roleColor.text,
+                            border: `1px solid ${roleColor.border}`,
+                            padding: '0.15rem 0.55rem',
+                            borderRadius: '1rem',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            textTransform: 'capitalize',
+                          }}
+                        >
+                          {u.role}
+                        </span>
+                        {u.therapistStatus && (
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              padding: '0.12rem 0.4rem',
+                              borderRadius: '0.35rem',
+                              background: u.therapistStatus === 'approved' ? '#ecfdf5' : '#fff7ed',
+                              color: u.therapistStatus === 'approved' ? '#059669' : '#c2410c',
+                              fontWeight: 600,
+                              textTransform: 'capitalize',
+                            }}
+                          >
+                            {u.therapistStatus}
+                          </span>
+                        )}
+                        <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginLeft: 'auto' }}>
+                          {new Date(u.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1239,7 +1216,7 @@ export default function AdminPage() {
                 <span>Loading current donation settings...</span>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '2.5rem', alignItems: 'start' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: '2rem', alignItems: 'start' }}>
                 {/* Left Column: Form & Upload Controls */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   {/* UPI ID */}
@@ -1975,11 +1952,10 @@ function TherapistQueueCard({
         background: '#ffffff',
         border: '1px solid #e2e8f0',
         borderRadius: '1rem',
-        padding: '1.5rem',
-        display: 'grid',
-        gridTemplateColumns: '1fr auto',
-        gap: '1.5rem',
-        alignItems: 'start',
+        padding: '1rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1rem',
         boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
       }}
     >
@@ -2093,25 +2069,26 @@ function TherapistQueueCard({
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: 130 }}>
+      {/* Action Buttons - horizontal row on mobile */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
         {therapist.status !== 'approved' && (
           <button
             type="button"
             onClick={onApprove}
             style={{
-              padding: '0.5rem 1rem',
+              padding: '0.45rem 1rem',
               borderRadius: '0.5rem',
-              fontSize: '0.825rem',
+              fontSize: '0.8rem',
               fontWeight: 600,
               background: '#059669',
               color: '#ffffff',
               border: 'none',
               cursor: 'pointer',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
               gap: '0.35rem',
+              flex: '1 1 auto',
+              justifyContent: 'center',
             }}
           >
             <IconCheck size={14} color="#ffffff" />
@@ -2124,18 +2101,19 @@ function TherapistQueueCard({
             type="button"
             onClick={onReject}
             style={{
-              padding: '0.5rem 1rem',
+              padding: '0.45rem 1rem',
               borderRadius: '0.5rem',
-              fontSize: '0.825rem',
+              fontSize: '0.8rem',
               fontWeight: 600,
               background: '#fef2f2',
               border: '1px solid #fecaca',
               color: '#dc2626',
               cursor: 'pointer',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
               gap: '0.35rem',
+              flex: '1 1 auto',
+              justifyContent: 'center',
             }}
           >
             <IconX size={14} color="#dc2626" />
@@ -2148,14 +2126,15 @@ function TherapistQueueCard({
             type="button"
             onClick={onSuspend}
             style={{
-              padding: '0.5rem 1rem',
+              padding: '0.45rem 1rem',
               borderRadius: '0.5rem',
-              fontSize: '0.825rem',
+              fontSize: '0.8rem',
               fontWeight: 500,
               background: '#f8fafc',
               border: '1px solid #e2e8f0',
               color: '#64748b',
               cursor: 'pointer',
+              flex: '1 1 auto',
             }}
           >
             Suspend
@@ -2166,7 +2145,7 @@ function TherapistQueueCard({
           type="button"
           onClick={onDelete}
           style={{
-            padding: '0.45rem 1rem',
+            padding: '0.45rem 0.85rem',
             borderRadius: '0.5rem',
             fontSize: '0.8rem',
             fontWeight: 500,
@@ -2174,16 +2153,15 @@ function TherapistQueueCard({
             border: '1px solid #fecaca',
             color: '#dc2626',
             cursor: 'pointer',
-            display: 'flex',
+            display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '0.35rem',
-            marginTop: '0.25rem',
+            gap: '0.3rem',
           }}
           title="Delete account"
         >
           <IconTrash size={13} color="#dc2626" />
-          <span>Delete Account</span>
+          <span>Delete</span>
         </button>
       </div>
     </div>
