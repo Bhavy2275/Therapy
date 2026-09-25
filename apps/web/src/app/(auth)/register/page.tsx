@@ -38,12 +38,29 @@ function RegisterForm() {
   const [success, setSuccess] = useState(false);
   const [honeypot, setHoneypot] = useState('');
 
+  // Email verification code state
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [verificationSuccess, setVerificationSuccess] = useState(false);
+
   useEffect(() => {
     // Try to detect user timezone
     try {
       setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -64,6 +81,7 @@ function RegisterForm() {
       password,
       options: {
         data: metadata,
+        emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined,
       },
     });
 
@@ -80,23 +98,294 @@ function RegisterForm() {
       return;
     }
 
-    // Otherwise, show confirmation email notice
+    // Otherwise, show interactive verification code entry
     setSuccess(true);
     setLoading(false);
   }
 
+  async function handleVerifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    const code = verificationCode.trim();
+    if (!code) {
+      setVerifyError('Please enter the verification code.');
+      return;
+    }
+    setVerifying(true);
+    setVerifyError(null);
+
+    const supabase = createClient();
+    let { data: verifyData, error: otpError } = await supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: 'signup',
+    });
+
+    // Fallback try 'email' type if signup type is rejected by provider configuration
+    if (otpError) {
+      const fallback = await supabase.auth.verifyOtp({
+        email,
+        token: code,
+        type: 'email',
+      });
+      if (!fallback.error && fallback.data?.session) {
+        verifyData = fallback.data;
+        otpError = null;
+      }
+    }
+
+    if (otpError || !verifyData?.session) {
+      setVerifyError(otpError?.message || 'Invalid or expired verification code. Please check and try again.');
+      setVerifying(false);
+      return;
+    }
+
+    setVerificationSuccess(true);
+    setTimeout(() => {
+      router.push('/dashboard');
+      router.refresh();
+    }, 800);
+  }
+
+  async function handleResendCode() {
+    if (resendCooldown > 0 || resending) return;
+    setResending(true);
+    setVerifyError(null);
+    setResendMessage(null);
+
+    const supabase = createClient();
+    const { error: resendErr } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined,
+      },
+    });
+
+    setResending(false);
+    if (resendErr) {
+      setVerifyError(resendErr.message);
+    } else {
+      setResendMessage('A new verification code has been sent to your email.');
+      setResendCooldown(60);
+    }
+  }
+
   if (success) {
     return (
-      <div className="glass fade-in-up" style={{ width: '100%', maxWidth: 420, borderRadius: '1.25rem', padding: '2.5rem', textAlign: 'center', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))' }}>
-        <div style={{ marginBottom: '1rem', color: 'hsl(var(--accent))' }}><IconUser size={44} /></div>
-        <h1 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Check your email</h1>
-        <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.9rem', lineHeight: 1.6 }}>
-          We sent a confirmation link to <strong style={{ color: 'hsl(var(--foreground))' }}>{email}</strong>.
-          Click it to activate your account.
-        </p>
-        <Link href="/login" className="btn-ghost" style={{ display: 'block', textAlign: 'center', marginTop: '1.5rem', textDecoration: 'none' }}>
-          Back to Sign In
-        </Link>
+      <div
+        className="glass fade-in-up"
+        style={{
+          width: '100%',
+          maxWidth: 440,
+          borderRadius: '1.25rem',
+          padding: '2.25rem',
+          border: '1px solid hsl(var(--border))',
+          background: 'hsl(var(--background))',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.08)',
+        }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: 'hsl(var(--secondary))',
+              color: 'hsl(var(--accent))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+            }}
+          >
+            <IconShield size={28} />
+          </div>
+          <h1 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.4rem', color: 'hsl(var(--foreground))' }}>
+            Verify Your Email
+          </h1>
+          <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.875rem', lineHeight: 1.5 }}>
+            We sent a verification code to <strong style={{ color: 'hsl(var(--foreground))' }}>{email}</strong>.
+            Enter the verification code below to activate your account.
+          </p>
+        </div>
+
+        {verificationSuccess ? (
+          <div
+            style={{
+              background: '#ecfdf5',
+              border: '1px solid #6ee7b7',
+              color: '#065f46',
+              padding: '1rem',
+              borderRadius: '0.75rem',
+              textAlign: 'center',
+              fontSize: '0.9rem',
+              fontWeight: 500,
+            }}
+          >
+            ✓ Email verified successfully! Redirecting to your dashboard...
+          </div>
+        ) : (
+          <form onSubmit={handleVerifyCode} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {verifyError && (
+              <div
+                style={{
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#991b1b',
+                  padding: '0.75rem',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.85rem',
+                  lineHeight: 1.4,
+                }}
+              >
+                {verifyError}
+              </div>
+            )}
+
+            {resendMessage && (
+              <div
+                style={{
+                  background: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  color: '#166534',
+                  padding: '0.75rem',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.85rem',
+                  lineHeight: 1.4,
+                }}
+              >
+                {resendMessage}
+              </div>
+            )}
+
+            <div>
+              <label
+                htmlFor="verification-code"
+                style={{
+                  display: 'block',
+                  fontSize: '0.825rem',
+                  fontWeight: 600,
+                  marginBottom: '0.35rem',
+                  color: 'hsl(var(--foreground))',
+                }}
+              >
+                Verification Code
+              </label>
+              <input
+                id="verification-code"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="one-time-code"
+                maxLength={10}
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value.replace(/\s+/g, ''))}
+                placeholder="Enter code"
+                required
+                autoFocus
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '0.65rem',
+                  border: '1px solid hsl(var(--border))',
+                  background: 'hsl(var(--secondary))',
+                  color: 'hsl(var(--foreground))',
+                  fontSize: '1.25rem',
+                  fontWeight: 700,
+                  textAlign: 'center',
+                  letterSpacing: '0.35em',
+                  fontFamily: 'monospace',
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={verifying || !verificationCode.trim()}
+              className="btn-accent"
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                borderRadius: '0.65rem',
+                border: 'none',
+                cursor: verifying || !verificationCode.trim() ? 'not-allowed' : 'pointer',
+                opacity: verifying || !verificationCode.trim() ? 0.7 : 1,
+                fontWeight: 600,
+                fontSize: '0.925rem',
+              }}
+            >
+              {verifying ? 'Verifying...' : 'Verify Code & Sign In'}
+            </button>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '0.825rem',
+                marginTop: '0.25rem',
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleResendCode}
+                disabled={resending || resendCooldown > 0}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: resendCooldown > 0 ? 'hsl(var(--muted-foreground))' : 'hsl(var(--accent))',
+                  cursor: resendCooldown > 0 || resending ? 'not-allowed' : 'pointer',
+                  padding: 0,
+                  fontWeight: 600,
+                  textDecoration: resendCooldown > 0 ? 'none' : 'underline',
+                }}
+              >
+                {resending
+                  ? 'Sending...'
+                  : resendCooldown > 0
+                  ? `Resend code in ${resendCooldown}s`
+                  : 'Resend code'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSuccess(false);
+                  setVerifyError(null);
+                  setResendMessage(null);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'hsl(var(--muted-foreground))',
+                  cursor: 'pointer',
+                  padding: 0,
+                  textDecoration: 'underline',
+                }}
+              >
+                Edit email
+              </button>
+            </div>
+          </form>
+        )}
+
+        <div style={{ textAlign: 'center', marginTop: '1.5rem', borderTop: '1px solid hsl(var(--border))', paddingTop: '1rem' }}>
+          <p style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}>
+            Alternatively, if you received an activation link in your email, click that link to confirm directly.
+          </p>
+          <Link
+            href="/login"
+            className="btn-ghost"
+            style={{
+              display: 'inline-block',
+              fontSize: '0.85rem',
+              textDecoration: 'none',
+              color: 'hsl(var(--foreground))',
+            }}
+          >
+            ← Back to Sign In
+          </Link>
+        </div>
       </div>
     );
   }

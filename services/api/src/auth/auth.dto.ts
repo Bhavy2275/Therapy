@@ -42,3 +42,21 @@ export class RefreshDto {
   @IsNotEmpty()
   refreshToken: string;
 }
+
+export class VerifyCodeDto {
+  @ApiProperty({ example: 'user@example.com' })
+  @IsEmail()
+  email: string;
+
+  @ApiProperty({ example: '123456' })
+  @IsString()
+  @IsNotEmpty()
+  code: string;
+}
+
+export class ResendCodeDto {
+  @ApiProperty({ example: 'user@example.com' })
+  @IsEmail()
+  email: string;
+}
+

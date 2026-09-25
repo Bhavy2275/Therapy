@@ -60,11 +60,27 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1. Delete associated sessions
+    // 1. Delete associated sessions (both client and therapist roles)
+    await adminClient.from('sessions').delete().eq('client_id', userId);
+    await adminClient.from('sessions').delete().eq('therapist_id', userId);
     await adminClient
       .from('sessions')
       .delete()
       .or(`client_id.eq.${userId},therapist_id.eq.${userId}`);
+
+    // Clean up therapist storage verification documents if any
+    try {
+      const { data: storageFiles } = await adminClient.storage
+        .from('therapist-documents')
+        .list(userId);
+      if (storageFiles && storageFiles.length > 0) {
+        await adminClient.storage
+          .from('therapist-documents')
+          .remove(storageFiles.map((f) => `${userId}/${f.name}`));
+      }
+    } catch {
+      // Storage cleanup non-blocking
+    }
 
     // 2. Delete availability slots
     await adminClient
@@ -103,8 +119,22 @@ export async function POST(req: Request) {
     // 7. Delete from Supabase Auth service
     const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(userId);
     if (authDeleteError) {
-      console.warn('[admin/users/delete] Warning deleting from Supabase Auth:', authDeleteError);
-      // Even if auth service warning occurs, public profile has been purged
+      console.error('[admin/users/delete] Failed to delete from Supabase Auth:', authDeleteError);
+      // Public profile is already deleted but the auth record remains — the user
+      // could re-authenticate. Return a partial-failure response so the admin knows.
+      return NextResponse.json(
+        {
+          success: false,
+          partialDelete: true,
+          message:
+            'User profile data was deleted, but the authentication record could not be removed. ' +
+            'The user cannot access their data but may still be able to sign in. ' +
+            'Please delete them manually from the Supabase Auth dashboard.',
+          deletedUserId: userId,
+          authError: authDeleteError.message,
+        },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json({

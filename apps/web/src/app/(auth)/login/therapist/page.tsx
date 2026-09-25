@@ -46,6 +46,14 @@ function TherapistLoginForm() {
         .eq('id', authData.user.id)
         .single();
 
+      // Guard: deleted accounts have no public profile
+      if (!userRow) {
+        await supabase.auth.signOut();
+        setError('This account no longer exists. Please contact support.');
+        setLoading(false);
+        return;
+      }
+
       if (userRow?.role === 'client') {
         // Sign out immediately to preserve role separation
         await supabase.auth.signOut();
@@ -199,6 +207,28 @@ function TherapistLoginForm() {
             }}
           >
             <p style={{ margin: 0 }}>{error}</p>
+            {error.toLowerCase().includes('not confirmed') && (
+              <div style={{ marginTop: '0.6rem' }}>
+                <Link
+                  href={`/verify?email=${encodeURIComponent(email)}`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    fontSize: '0.8rem',
+                    padding: '0.4rem 0.9rem',
+                    background: 'hsl(var(--accent))',
+                    color: 'hsl(var(--accent-foreground))',
+                    borderRadius: '0.4rem',
+                    textDecoration: 'none',
+                    fontWeight: 600,
+                  }}
+                >
+                  <span>Enter verification code</span>
+                  <span>→</span>
+                </Link>
+              </div>
+            )}
             {roleMismatch && (
               <div style={{ marginTop: '0.6rem' }}>
                 <Link

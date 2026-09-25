@@ -19,7 +19,10 @@ export async function GET(request: Request) {
     );
   }
 
-  if (code) {
+  const tokenHash = requestUrl.searchParams.get('token_hash');
+  const type = requestUrl.searchParams.get('type');
+
+  if (code || (tokenHash && type)) {
     const cookieStore = await cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,8 +45,19 @@ export async function GET(request: Request) {
       },
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
+    let authError = null;
+    if (tokenHash && type) {
+      const { error } = await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: type as any,
+      });
+      authError = error;
+    } else if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      authError = error;
+    }
+
+    if (!authError) {
       const response = NextResponse.redirect(`${origin}${next}`);
       response.headers.set(
         'Cache-Control',
@@ -53,7 +67,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent(error.message)}`,
+      `${origin}/login?error=${encodeURIComponent(authError.message)}`,
     );
   }
 

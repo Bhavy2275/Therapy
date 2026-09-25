@@ -18,14 +18,14 @@ services:
       - key: WEB_URL
         sync: false
       - key: NEXT_PUBLIC_SUPABASE_URL
-        value: https://vxzgjbuyytcnincgyyon.supabase.co
+        sync: false
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
-        value: sb_publishable_6KL1mmS9kxtpyUH-LHfOpQ_xP7NAj4Q
+        sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: SUPABASE_URL
-        value: https://vxzgjbuyytcnincgyyon.supabase.co
+        sync: false
       - key: SUPABASE_PUBLISHABLE_KEY
-        value: sb_publishable_6KL1mmS9kxtpyUH-LHfOpQ_xP7NAj4Q
+        sync: false
       - key: SUPABASE_SECRET_KEY
         sync: false

@@ -468,6 +468,20 @@ export default function AdminPage() {
       });
 
       const data = await res.json().catch(() => ({}));
+
+      if (data.partialDelete) {
+        // Profile data deleted but auth record persists — show warning and still remove from UI
+        setToast({
+          text: `⚠️ ${userToDelete.fullName || userToDelete.email} profile data deleted, but auth record could not be removed. Delete manually from Supabase Auth dashboard.`,
+          type: 'error',
+        });
+        setTimeout(() => setToast(null), 8000);
+        setUsersList((prev) => prev.filter((u) => u.id !== userToDelete.id));
+        setTherapists((prev) => prev.filter((t) => t.userId !== userToDelete.id));
+        setUserToDelete(null);
+        return;
+      }
+
       if (!res.ok) {
         throw new Error(data.error || 'Failed to delete user.');
       }
