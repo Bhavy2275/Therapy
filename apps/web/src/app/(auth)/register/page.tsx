@@ -278,10 +278,10 @@ function RegisterForm() {
                 inputMode="numeric"
                 pattern="[0-9]*"
                 autoComplete="one-time-code"
-                maxLength={6}
+                maxLength={8}
                 value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="123456"
+                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                placeholder="12345678"
                 required
                 autoFocus
                 style={{
@@ -302,7 +302,7 @@ function RegisterForm() {
 
             <button
               type="submit"
-              disabled={verifying || verificationCode.trim().length !== 6}
+              disabled={verifying || verificationCode.trim().length < 6}
               className="btn-accent"
               style={{
                 width: '100%',

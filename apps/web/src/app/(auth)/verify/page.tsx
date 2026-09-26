@@ -169,7 +169,7 @@ function VerifyForm() {
           Verify Your Email
         </h1>
         <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.875rem' }}>
-          Enter the 6-digit code sent to your email inbox
+          Enter the 8-digit code sent to your email inbox
         </p>
       </div>
 
@@ -278,10 +278,10 @@ function VerifyForm() {
               inputMode="numeric"
               pattern="[0-9]*"
               autoComplete="one-time-code"
-              maxLength={6}
+              maxLength={8}
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="123456"
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+              placeholder="12345678"
               required
               autoFocus
               style={{
@@ -302,7 +302,7 @@ function VerifyForm() {
 
           <button
             type="submit"
-            disabled={loading || !email.trim() || code.trim().length !== 6}
+            disabled={loading || !email.trim() || code.trim().length < 6}
             className="btn-accent"
             style={{
               width: '100%',
