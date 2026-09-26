@@ -52,15 +52,15 @@ function LoginForm() {
         .eq('id', authData.user.id)
         .single();
 
-      const userRole = userRow?.role;
-
-      // Guard: deleted accounts have no public profile
+      // Guard: deleted accounts have no public profile — check BEFORE reading role
       if (!userRow) {
         await supabase.auth.signOut();
         setError('This account no longer exists. Please contact support.');
         setLoading(false);
         return;
       }
+
+      const userRole = userRow.role;
 
       if (isClient && userRole === 'therapist') {
         await supabase.auth.signOut();

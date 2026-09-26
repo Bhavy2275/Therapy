@@ -4,6 +4,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 /**
  * Supabase auth middleware — refreshes expired sessions and protects routes.
  *
+ * CRITICAL: All redirects MUST copy cookies from supabaseResponse so that
+ * refreshed session tokens are never lost mid-flight.
+ *
  * Protected route groups:
  *   /dashboard/**  — client/therapist dashboard
  *   /admin/**      — admin only
@@ -39,15 +42,16 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Protect /dashboard and /admin routes
-  if (
-    (pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) &&
-    !user
-  ) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    url.searchParams.set('redirectTo', pathname);
+  /**
+   * Helper: create a redirect response that inherits all session cookies
+   * from supabaseResponse so token refreshes aren't lost.
+   */
+  function redirectWithCookies(url: string | URL): NextResponse {
     const redirectResponse = NextResponse.redirect(url);
+    // Copy every cookie that supabase set (e.g. refreshed tokens)
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+    });
     redirectResponse.headers.set(
       'Cache-Control',
       'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -57,7 +61,18 @@ export async function middleware(request: NextRequest) {
     return redirectResponse;
   }
 
-  // Admin-only guard
+  // ── Protect /dashboard and /admin routes ─────────────────────────────────
+  if (
+    (pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) &&
+    !user
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    url.searchParams.set('redirectTo', pathname);
+    return redirectWithCookies(url);
+  }
+
+  // ── Admin-only guard ──────────────────────────────────────────────────────
   if (pathname.startsWith('/admin') && user) {
     const { data: userRow } = await supabase
       .from('users')
@@ -68,18 +83,18 @@ export async function middleware(request: NextRequest) {
     if (userRow?.role !== 'admin') {
       const url = request.nextUrl.clone();
       url.pathname = '/dashboard';
-      return NextResponse.redirect(url);
+      return redirectWithCookies(url);
     }
   }
 
-  // Redirect logged-in users away from auth pages
+  // ── Redirect logged-in users away from auth pages ─────────────────────────
   if ((pathname.startsWith('/login') || pathname.startsWith('/register')) && user) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
-    return NextResponse.redirect(url);
+    return redirectWithCookies(url);
   }
 
-  // Prevent browser caching for authenticated protected routes to block back-button page view
+  // ── Prevent browser caching for authenticated protected routes ────────────
   if (pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) {
     supabaseResponse.headers.set(
       'Cache-Control',
