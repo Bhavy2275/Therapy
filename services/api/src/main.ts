@@ -50,11 +50,20 @@ async function bootstrap() {
   );
 
   // ── 4. Strict CORS ────────────────────────────────────────────────────────
+  const normalizeOrigin = (val?: string): string | null => {
+    if (!val) return null;
+    try {
+      return new URL(val).origin;
+    } catch {
+      return val.replace(/\/+$/, '');
+    }
+  };
+
   const allowedOrigins = [
-    process.env.WEB_URL,
-    process.env.PRODUCTION_WEB_URL,
-    process.env.NEXT_PUBLIC_SITE_URL,
-    process.env.NEXT_PUBLIC_APP_URL,
+    normalizeOrigin(process.env.WEB_URL),
+    normalizeOrigin(process.env.PRODUCTION_WEB_URL),
+    normalizeOrigin(process.env.NEXT_PUBLIC_SITE_URL),
+    normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL),
     'https://jarwishelpme.com',
     'http://localhost:3000',
     'http://localhost:3001',

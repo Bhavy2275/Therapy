@@ -90,9 +90,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Trust signals */}
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
           {[
-            { icon: '✦', text: '500+ verified therapists across India & globally' },
-            { icon: '✦', text: '10,000+ sessions completed' },
-            { icon: '✦', text: 'End-to-end encrypted & private' },
+            { icon: '✦', text: 'Clinically verified licensed practitioners' },
+            { icon: '✦', text: 'Live matching in under 60 seconds' },
+            { icon: '✦', text: '100% confidential & end-to-end encrypted' },
           ].map((item) => (
             <div key={item.text} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
               <span style={{ color: 'hsl(var(--accent))', fontSize: '0.7rem', flexShrink: 0 }}>{item.icon}</span>

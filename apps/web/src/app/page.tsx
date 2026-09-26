@@ -17,10 +17,10 @@ import MobileNavDrawer from '@/components/MobileNavDrawer';
 
 
 const stats = [
-  { value: '500+', label: 'Verified Therapists' },
-  { value: '10k+', label: 'Sessions Completed' },
-  { value: '4.9 / 5', label: 'Client Satisfaction' },
-  { value: '24/7', label: 'Real-Time Availability' },
+  { value: '< 60s', label: 'Average Match Time' },
+  { value: '100%', label: 'Credential Verified' },
+  { value: '0 Cost', label: 'Voluntary Donations' },
+  { value: '24/7', label: 'Confidential Support' },
 ];
 
 const features = [
