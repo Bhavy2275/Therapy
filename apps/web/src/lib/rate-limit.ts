@@ -42,6 +42,20 @@ const isUpstashConfigured = Boolean(
   redisUrl.startsWith('http')
 );
 
+// F-06 FIX: In production, rate limiting MUST use a shared Redis backend.
+// In-memory rate limiting resets on every serverless cold-start, allowing
+// attackers to bypass limits by triggering new instances. This assertion
+// prevents silent degradation by crashing early with a clear error.
+if (process.env.NODE_ENV === 'production' && !isUpstashConfigured) {
+  console.error(
+    '[rate-limit] FATAL: Upstash Redis is required in production. ' +
+    'Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in your environment. ' +
+    'In-memory rate limiting is NOT safe for production serverless deployments.'
+  );
+  // Throw rather than process.exit so Next.js can surface this as a build/boot error
+  throw new Error('[rate-limit] Upstash Redis must be configured in production.');
+}
+
 if (isUpstashConfigured) {
   try {
     redisClient = new Redis({
