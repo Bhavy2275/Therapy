@@ -17,7 +17,9 @@ export class SupabaseService implements OnModuleInit {
   constructor(private readonly config: ConfigService) {}
 
   onModuleInit() {
-    const url = this.config.getOrThrow<string>('NEXT_PUBLIC_SUPABASE_URL');
+    const url =
+      this.config.get<string>('SUPABASE_URL') ||
+      this.config.getOrThrow<string>('NEXT_PUBLIC_SUPABASE_URL');
     const serviceKey = this.config.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY');
 
     this._client = createClient(url, serviceKey, {
@@ -40,8 +42,12 @@ export class SupabaseService implements OnModuleInit {
    * Pass the user's Supabase access token (JWT).
    */
   getUserClient(accessToken: string): SupabaseClient {
-    const url = this.config.getOrThrow<string>('NEXT_PUBLIC_SUPABASE_URL');
-    const anonKey = this.config.getOrThrow<string>('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    const url =
+      this.config.get<string>('SUPABASE_URL') ||
+      this.config.getOrThrow<string>('NEXT_PUBLIC_SUPABASE_URL');
+    const anonKey =
+      this.config.get<string>('SUPABASE_ANON_KEY') ||
+      this.config.getOrThrow<string>('NEXT_PUBLIC_SUPABASE_ANON_KEY');
 
     return createClient(url, anonKey, {
       global: {

@@ -3,13 +3,21 @@
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, resetClient } from '@/lib/supabase/client';
 import { IconClipboard } from '@/components/Icons';
+
+function safeRedirect(to: string | null): string {
+  if (!to) return '/dashboard';
+  if (to.startsWith('/') && !to.startsWith('//') && !to.startsWith('/\\')) {
+    return to;
+  }
+  return '/dashboard';
+}
 
 function TherapistLoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const redirectTo = params.get('redirectTo') ?? '/dashboard';
+  const redirectTo = safeRedirect(params.get('redirectTo'));
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,15 +48,24 @@ function TherapistLoginForm() {
       }
 
       // Check role strictly: this portal is for therapists
-      const { data: userRow } = await supabase
+      const { data: userRow, error: roleError } = await supabase
         .from('users')
         .select('role')
         .eq('id', authData.user.id)
         .single();
 
-      // Guard: deleted accounts have no public profile
+      // Guard: differentiate database connectivity errors from deleted profile (PGRST116)
+      if (roleError && roleError.code !== 'PGRST116') {
+        await supabase.auth.signOut();
+        resetClient();
+        setError('Unable to verify your account right now. Please try again.');
+        setLoading(false);
+        return;
+      }
+
       if (!userRow) {
         await supabase.auth.signOut();
+        resetClient();
         setError('This account no longer exists. Please contact support.');
         setLoading(false);
         return;
@@ -57,6 +74,7 @@ function TherapistLoginForm() {
       if (userRow?.role === 'client') {
         // Sign out immediately to preserve role separation
         await supabase.auth.signOut();
+        resetClient();
         setRoleMismatch(true);
         setError('This account is registered as a Client seeking therapy. Please sign in via the Client Portal.');
         setLoading(false);
@@ -170,18 +188,30 @@ function TherapistLoginForm() {
         </div>
 
         <div>
-          <label
-            htmlFor="therapist-password"
-            style={{
-              fontSize: '0.85rem',
-              color: 'hsl(var(--foreground))',
-              display: 'block',
-              marginBottom: '0.4rem',
-              fontWeight: 600,
-            }}
-          >
-            Password
-          </label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+            <label
+              htmlFor="therapist-password"
+              style={{
+                fontSize: '0.85rem',
+                color: 'hsl(var(--foreground))',
+                fontWeight: 600,
+                margin: 0,
+              }}
+            >
+              Password
+            </label>
+            <Link
+              href="/forgot-password"
+              style={{
+                fontSize: '0.8rem',
+                color: 'hsl(var(--accent))',
+                textDecoration: 'none',
+                fontWeight: 600,
+              }}
+            >
+              Forgot password?
+            </Link>
+          </div>
           <input
             id="therapist-password"
             type="password"
@@ -210,7 +240,12 @@ function TherapistLoginForm() {
             {error.toLowerCase().includes('not confirmed') && (
               <div style={{ marginTop: '0.6rem' }}>
                 <Link
-                  href={`/verify?email=${encodeURIComponent(email)}`}
+                  href="/verify"
+                  onClick={() => {
+                    if (typeof window !== 'undefined' && email) {
+                      sessionStorage.setItem('pendingVerifyEmail', email);
+                    }
+                  }}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',

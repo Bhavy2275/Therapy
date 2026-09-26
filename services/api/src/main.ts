@@ -52,6 +52,8 @@ async function bootstrap() {
   // ── 4. Strict CORS ────────────────────────────────────────────────────────
   const allowedOrigins = [
     process.env.WEB_URL,
+    process.env.PRODUCTION_WEB_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
     'http://localhost:3000',
     'http://localhost:3001',
     'http://127.0.0.1:3000',
@@ -68,7 +70,6 @@ async function bootstrap() {
 
       const isAllowed =
         allowedOrigins.includes(origin) ||
-        origin.endsWith('.vercel.app') ||
         (process.env.NODE_ENV !== 'production' &&
           (origin.includes('localhost') || origin.includes('127.0.0.1')));
 

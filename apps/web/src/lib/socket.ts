@@ -27,6 +27,18 @@ export async function getMatchingSocket(): Promise<Socket> {
     reconnectionDelay: 1000,
   });
 
+  // Re-fetch token on reconnect to avoid passing stale or expired tokens
+  socket.io.on('reconnect_attempt', async () => {
+    try {
+      const { data: { session: freshSession } } = await supabase.auth.getSession();
+      if (socket) {
+        socket.auth = { token: freshSession?.access_token || '' };
+      }
+    } catch {
+      // ignore
+    }
+  });
+
   return socket;
 }
 

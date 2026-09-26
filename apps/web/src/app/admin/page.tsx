@@ -51,76 +51,6 @@ interface AdminUserItem {
   licenseNumber?: string | null;
 }
 
-const DEMO_THERAPISTS: TherapistItem[] = [
-  {
-    userId: 'demo-1',
-    fullName: 'Dr. Ananya Sharma',
-    email: 'dr.ananya@mindbridge.com',
-    timezone: 'Asia/Kolkata',
-    bio: 'Licensed clinical psychologist with 9+ years experience specializing in CBT, chronic anxiety, and work-related burnout.',
-    licenseNumber: 'RCI-CR-2018-98421',
-    licenseDocumentUrl: 'licenses/ananya-license.pdf',
-    licenseDocumentDownloadUrl: 'https://example.com/license-ananya.pdf',
-    yearsOfExperience: 9,
-    hourlyRateUsd: 65,
-    specializations: ['Anxiety & Panic', 'Depression', 'CBT', 'Stress & Burnout'],
-    languages: ['English', 'Hindi'],
-    status: 'pending',
-    adminNote: null,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-  },
-  {
-    userId: 'demo-2',
-    fullName: 'Marcus Vance, LMFT',
-    email: 'marcus.vance@mindbridge.com',
-    timezone: 'America/New_York',
-    bio: 'Licensed Marriage and Family Therapist. Passionate about couples communication, emotional regulation, and family systems therapy.',
-    licenseNumber: 'NY-LMFT-0081294',
-    licenseDocumentUrl: 'licenses/marcus-credentials.pdf',
-    licenseDocumentDownloadUrl: 'https://example.com/license-marcus.pdf',
-    yearsOfExperience: 6,
-    hourlyRateUsd: 80,
-    specializations: ['Couples & Marriage', 'Family Dynamics', 'Trauma & PTSD'],
-    languages: ['English', 'Spanish'],
-    status: 'pending',
-    adminNote: null,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
-  },
-  {
-    userId: 'demo-3',
-    fullName: 'Dr. Priya Nair',
-    email: 'priya.nair@mindbridge.com',
-    timezone: 'Asia/Kolkata',
-    bio: 'Consultant Clinical Psychologist with specialization in adolescent mental health, ADHD neurodivergence, and mindfulness-based interventions.',
-    licenseNumber: 'RCI-CR-2015-44120',
-    licenseDocumentUrl: 'licenses/priya-rci.pdf',
-    licenseDocumentDownloadUrl: 'https://example.com/license-priya.pdf',
-    yearsOfExperience: 12,
-    hourlyRateUsd: 90,
-    specializations: ['ADHD & Neurodivergence', 'Mindfulness & Somatics', 'Depression'],
-    languages: ['English', 'Hindi', 'Malayalam'],
-    status: 'approved',
-    adminNote: 'License verified via RCI registry.',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(),
-  },
-  {
-    userId: 'demo-4',
-    fullName: 'Alex Chen',
-    email: 'alex.chen@mindbridge.com',
-    timezone: 'Europe/London',
-    bio: 'Integrative counselor focusing on life transitions and grief support.',
-    licenseNumber: 'BACP-PENDING-99',
-    licenseDocumentUrl: null,
-    yearsOfExperience: 2,
-    hourlyRateUsd: 50,
-    specializations: ['Grief & Bereavement', 'Life Transitions'],
-    languages: ['English'],
-    status: 'rejected',
-    adminNote: 'Submitted document was unreadable. Please upload an official BACP certificate with visible registration number.',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 96).toISOString(),
-  },
-];
-
 interface PlatformSettings {
   upi_id: string;
   upi_name: string;
@@ -304,7 +234,7 @@ export default function AdminPage() {
         .order('created_at', { ascending: false });
 
       if (error || !data || data.length === 0) {
-        setTherapists(DEMO_THERAPISTS);
+        setTherapists([]);
       } else {
         const mapped: TherapistItem[] = await Promise.all(
           data.map(async (row: any) => {
@@ -339,7 +269,7 @@ export default function AdminPage() {
         setTherapists(mapped);
       }
     } catch {
-      setTherapists(DEMO_THERAPISTS);
+      setTherapists([]);
     } finally {
       setLoading(false);
     }

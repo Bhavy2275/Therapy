@@ -1,7 +1,5 @@
-/**
- * Simple in-memory sliding-window rate limiter for Next.js Route Handlers.
- * Suitable for serverless / edge runtime protection against brute-force and request flooding.
- */
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 
 interface RateLimitRecord {
   count: number;
@@ -32,12 +30,35 @@ export interface RateLimitResult {
   reset: number;
 }
 
-export function rateLimit(
+let redisClient: Redis | null = null;
+const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+const isUpstashConfigured = Boolean(
+  redisUrl &&
+  redisToken &&
+  !redisUrl.includes('your-redis') &&
+  !redisUrl.includes('placeholder') &&
+  redisUrl.startsWith('http')
+);
+
+if (isUpstashConfigured) {
+  try {
+    redisClient = new Redis({
+      url: redisUrl!,
+      token: redisToken!,
+    });
+  } catch (err) {
+    console.warn('[rate-limit] Could not initialize Upstash Redis:', err);
+  }
+}
+
+function inMemoryRateLimit(
   identifier: string,
   options: RateLimitOptions = {}
 ): RateLimitResult {
   const limit = options.limit ?? 20;
-  const windowMs = options.windowMs ?? 60_000; // Default 20 reqs / 1 min
+  const windowMs = options.windowMs ?? 60_000;
   const now = Date.now();
 
   const record = rateLimitStore.get(identifier);
@@ -71,6 +92,36 @@ export function rateLimit(
     remaining: limit - record.count,
     reset: record.resetTime,
   };
+}
+
+export async function rateLimit(
+  identifier: string,
+  options: RateLimitOptions = {}
+): Promise<RateLimitResult> {
+  const limit = options.limit ?? 20;
+  const windowMs = options.windowMs ?? 60_000;
+
+  if (redisClient) {
+    try {
+      const windowSeconds = Math.max(1, Math.round(windowMs / 1000));
+      const ratelimiter = new Ratelimit({
+        redis: redisClient,
+        limiter: Ratelimit.slidingWindow(limit, `${windowSeconds} s`),
+        prefix: 'jarwis:ratelimit',
+      });
+      const result = await ratelimiter.limit(identifier);
+      return {
+        success: result.success,
+        limit: result.limit,
+        remaining: result.remaining,
+        reset: result.reset,
+      };
+    } catch (err) {
+      console.warn('[rate-limit] Upstash rate limit failed, using in-memory fallback:', err);
+    }
+  }
+
+  return inMemoryRateLimit(identifier, options);
 }
 
 export function getClientIp(req: Request): string {

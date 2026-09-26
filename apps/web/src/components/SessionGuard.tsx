@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, resetClient } from '@/lib/supabase/client';
 
 /**
  * SessionGuard
@@ -25,9 +25,11 @@ export default function SessionGuard() {
         // bypassed by a stale client-side session unlike getSession().
         const { data: { user }, error } = await supabase.auth.getUser();
         if (error || !user) {
+          resetClient();
           window.location.replace('/login');
         }
       } catch {
+        resetClient();
         window.location.replace('/login');
       }
     };
@@ -49,6 +51,7 @@ export default function SessionGuard() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event: string, session: unknown) => {
       if (event === 'SIGNED_OUT' || !session) {
+        resetClient();
         window.location.replace('/login');
       }
     });

@@ -21,6 +21,16 @@ function VerifyForm() {
   const [verified, setVerified] = useState(false);
 
   useEffect(() => {
+    if (!initialEmail && typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('pendingVerifyEmail');
+      if (stored) {
+        setEmail(stored);
+        sessionStorage.removeItem('pendingVerifyEmail');
+      }
+    }
+  }, [initialEmail]);
+
+  useEffect(() => {
     if (resendCooldown <= 0) return;
     const timer = setInterval(() => {
       setResendCooldown((prev) => prev - 1);
@@ -267,10 +277,10 @@ function VerifyForm() {
               inputMode="numeric"
               pattern="[0-9]*"
               autoComplete="one-time-code"
-              maxLength={10}
+              maxLength={6}
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\s+/g, ''))}
-              placeholder="Enter code"
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="123456"
               required
               autoFocus
               style={{
@@ -291,15 +301,15 @@ function VerifyForm() {
 
           <button
             type="submit"
-            disabled={loading || !email.trim() || !code.trim()}
+            disabled={loading || !email.trim() || code.trim().length !== 6}
             className="btn-accent"
             style={{
               width: '100%',
               padding: '0.75rem',
               borderRadius: '0.65rem',
               border: 'none',
-              cursor: loading || !email.trim() || !code.trim() ? 'not-allowed' : 'pointer',
-              opacity: loading || !email.trim() || !code.trim() ? 0.7 : 1,
+              cursor: loading || !email.trim() || code.trim().length !== 6 ? 'not-allowed' : 'pointer',
+              opacity: loading || !email.trim() || code.trim().length !== 6 ? 0.7 : 1,
               fontWeight: 600,
               fontSize: '0.925rem',
               marginTop: '0.25rem',

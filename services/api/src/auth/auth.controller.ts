@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
-import { RegisterDto, LoginDto, RefreshDto, VerifyCodeDto, ResendCodeDto } from './auth.dto.js';
+import { RegisterDto, LoginDto, RefreshDto, VerifyCodeDto, ResendCodeDto, ForgotPasswordDto, ResetPasswordDto } from './auth.dto.js';
 import { Public } from './auth.guard.js';
 
 @ApiTags('auth')
@@ -62,5 +62,22 @@ export class AuthController {
   @ApiOperation({ summary: 'Resend email verification code' })
   resendCode(@Body() dto: ResendCodeDto) {
     return this.authService.resendCode(dto);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset instructions' })
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @ApiBearerAuth()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Set new password for authenticated user' })
+  resetPassword(@Headers('authorization') auth: string, @Body() dto: ResetPasswordDto) {
+    const token = auth?.replace('Bearer ', '');
+    return this.authService.resetPassword(token, dto);
   }
 }

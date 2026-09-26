@@ -60,3 +60,16 @@ export class ResendCodeDto {
   email: string;
 }
 
+export class ForgotPasswordDto {
+  @ApiProperty({ example: 'user@example.com' })
+  @IsEmail()
+  email: string;
+}
+
+export class ResetPasswordDto {
+  @ApiProperty({ example: 'SecureP@ssw0rd', minLength: 8 })
+  @IsString()
+  @MinLength(8)
+  newPassword: string;
+}
+

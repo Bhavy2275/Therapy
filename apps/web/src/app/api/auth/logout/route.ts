@@ -1,10 +1,33 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 async function performLogout(request: Request) {
   const cookieStore = await cookies();
   const supabase = await createClient();
+
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          const adminClient = createAdminClient();
+          await adminClient.auth.admin.signOut(session.access_token, 'global');
+        }
+      } catch (adminErr) {
+        console.warn('[logout] Admin global signOut warning:', adminErr);
+      }
+    }
+  } catch {
+    // Continue with client signOut even if getUser/admin signOut fails
+  }
 
   try {
     await supabase.auth.signOut();
@@ -45,9 +68,5 @@ async function performLogout(request: Request) {
 }
 
 export async function POST(request: Request) {
-  return performLogout(request);
-}
-
-export async function GET(request: Request) {
   return performLogout(request);
 }

@@ -18,9 +18,7 @@ function getRequiredEnv(name: string): string {
  */
 export function createAdminClient() {
   const supabaseUrl = getRequiredEnv('NEXT_PUBLIC_SUPABASE_URL');
-  const serviceRoleKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    getRequiredEnv('SUPABASE_SECRET_KEY');
+  const serviceRoleKey = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY');
 
   return createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },

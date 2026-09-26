@@ -7,7 +7,15 @@ import {
   Logger,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service.js';
-import type { RegisterDto, LoginDto, RefreshDto, VerifyCodeDto, ResendCodeDto } from './auth.dto.js';
+import type {
+  RegisterDto,
+  LoginDto,
+  RefreshDto,
+  VerifyCodeDto,
+  ResendCodeDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from './auth.dto.js';
 
 @Injectable()
 export class AuthService {
@@ -92,8 +100,23 @@ export class AuthService {
   }
 
   async logout(accessToken: string) {
-    const userClient = this.supabase.getUserClient(accessToken);
-    await userClient.auth.signOut();
+    try {
+      // Global admin signOut revokes all refresh tokens for this user globally
+      const { error } = await this.supabase.client.auth.admin.signOut(accessToken, 'global');
+      if (error) {
+        this.logger.warn(`Admin signOut warning: ${error.message}, falling back to user signOut`);
+        const userClient = this.supabase.getUserClient(accessToken);
+        await userClient.auth.signOut();
+      }
+    } catch (err: any) {
+      this.logger.warn(`Logout error: ${err?.message}`);
+      try {
+        const userClient = this.supabase.getUserClient(accessToken);
+        await userClient.auth.signOut();
+      } catch {
+        // ignore fallback errors
+      }
+    }
     return { message: 'Logged out successfully' };
   }
 
@@ -165,6 +188,28 @@ export class AuthService {
     }
 
     return { message: 'Verification code resent successfully' };
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto, redirectTo?: string) {
+    const { error } = await this.supabase.client.auth.resetPasswordForEmail(dto.email, {
+      redirectTo,
+    });
+    if (error) {
+      this.logger.warn(`Password reset request failed for ${dto.email}: ${error.message}`);
+    }
+    // Return standard success message regardless to prevent email enumeration
+    return { message: 'If this email is registered, instructions to reset your password have been sent.' };
+  }
+
+  async resetPassword(accessToken: string, dto: ResetPasswordDto) {
+    const userClient = this.supabase.getUserClient(accessToken);
+    const { error } = await userClient.auth.updateUser({
+      password: dto.newPassword,
+    });
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+    return { message: 'Password updated successfully' };
   }
 }
 

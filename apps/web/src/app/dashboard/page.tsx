@@ -62,7 +62,9 @@ export default async function DashboardPage() {
 
   let userRow = existingUser;
   if (!userRow) {
-    const metaRole = (user.user_metadata?.role as 'client' | 'therapist' | 'admin') || 'client';
+    const rawRole = user.user_metadata?.role;
+    const allowedRoles: ('client' | 'therapist')[] = ['client', 'therapist'];
+    const metaRole: 'client' | 'therapist' = allowedRoles.includes(rawRole) ? rawRole : 'client';
     const metaName = user.user_metadata?.full_name || user.email || 'User';
     const metaTz = user.user_metadata?.timezone || 'UTC';
 

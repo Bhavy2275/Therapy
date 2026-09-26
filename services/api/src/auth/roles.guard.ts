@@ -38,20 +38,20 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('User is not authenticated');
     }
 
-    // Check user_metadata first for performance
-    let userRole = user.user_metadata?.role;
+    // Authoritative role check: always query public.users table (never trust client metadata)
+    const { data, error } = await this.supabase.client
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
 
-    // If role is missing from metadata, query public.users table
-    if (!userRole) {
-      const { data } = await this.supabase.client
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      userRole = data?.role;
+    if (error || !data?.role) {
+      throw new ForbiddenException('User record or role not found');
     }
 
-    if (!userRole || !requiredRoles.includes(userRole as UserRole)) {
+    const userRole = data.role as UserRole;
+
+    if (!requiredRoles.includes(userRole)) {
       throw new ForbiddenException(
         `Requires one of the following roles: ${requiredRoles.join(', ')}`,
       );

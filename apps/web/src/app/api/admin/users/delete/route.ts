@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: Request) {
   try {
     const ip = getClientIp(req);
-    const rl = rateLimit(`admin-delete:${ip}`, { limit: 10, windowMs: 60_000 });
+    const rl = await rateLimit(`admin-delete:${ip}`, { limit: 10, windowMs: 60_000 });
     if (!rl.success) {
       return NextResponse.json(
         { error: 'Too many requests. Please slow down.' },

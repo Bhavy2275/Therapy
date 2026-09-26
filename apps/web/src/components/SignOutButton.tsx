@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, resetClient } from '@/lib/supabase/client';
 
 interface SignOutButtonProps {
   className?: string;
@@ -25,8 +25,9 @@ export default function SignOutButton({
       // 1. Sign out on client to clear local storage and tokens
       const supabase = createClient();
       await supabase.auth.signOut();
+      resetClient();
     } catch {
-      // ignore
+      resetClient();
     }
 
     try {

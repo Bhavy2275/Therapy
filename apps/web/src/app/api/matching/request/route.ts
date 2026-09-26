@@ -6,7 +6,7 @@ import { rateLimit, getClientIp } from '@/lib/rate-limit';
 export async function POST(req: Request) {
   try {
     const ip = getClientIp(req);
-    const rl = rateLimit(`matching-request:${ip}`, { limit: 15, windowMs: 60_000 });
+    const rl = await rateLimit(`matching-request:${ip}`, { limit: 15, windowMs: 60_000 });
     if (!rl.success) {
       return NextResponse.json(
         { error: 'Too many session requests. Please wait a minute.' },
