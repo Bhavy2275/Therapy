@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { getSiteUrl } from '@/lib/url';
 import { IconShield, IconMail, IconCheck } from '@/components/Icons';
 
 function VerifyForm() {
@@ -106,7 +107,7 @@ function VerifyForm() {
       type: 'signup',
       email: cleanEmail,
       options: {
-        emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined,
+        emailRedirectTo: `${getSiteUrl()}/auth/callback`,
       },
     });
 

@@ -53,7 +53,9 @@ async function bootstrap() {
   const allowedOrigins = [
     process.env.WEB_URL,
     process.env.PRODUCTION_WEB_URL,
+    process.env.NEXT_PUBLIC_SITE_URL,
     process.env.NEXT_PUBLIC_APP_URL,
+    'https://jarwishelpme.com',
     'http://localhost:3000',
     'http://localhost:3001',
     'http://127.0.0.1:3000',

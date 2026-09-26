@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { getSiteUrl } from '@/lib/url';
 import { IconUser, IconClipboard, IconHeart, IconShield } from '@/components/Icons';
 
 const TIMEZONES = [
@@ -81,7 +82,7 @@ function RegisterForm() {
       password,
       options: {
         data: metadata,
-        emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined,
+        emailRedirectTo: `${getSiteUrl()}/auth/callback`,
       },
     });
 
@@ -157,7 +158,7 @@ function RegisterForm() {
       type: 'signup',
       email,
       options: {
-        emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined,
+        emailRedirectTo: `${getSiteUrl()}/auth/callback`,
       },
     });
 

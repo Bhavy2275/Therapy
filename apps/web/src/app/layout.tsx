@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
+import AuthRecoveryListener from '@/components/AuthRecoveryListener';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -36,7 +37,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={inter.variable} data-scroll-behavior="smooth">
-      <body className="antialiased min-h-screen overscroll-none overflow-x-hidden">{children}</body>
+      <body className="antialiased min-h-screen overscroll-none overflow-x-hidden">
+        <AuthRecoveryListener />
+        {children}
+      </body>
     </html>
   );
 }
