@@ -21,7 +21,14 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized. Please log in.' }, { status: 401 });
     }
 
-    const adminClient = createAdminClient();
+    let adminClient;
+    try {
+      adminClient = createAdminClient();
+    } catch (envErr: unknown) {
+      const msg = envErr instanceof Error ? envErr.message : String(envErr);
+      console.error('[admin/users] Failed to create admin client (missing env vars?):', msg);
+      return NextResponse.json({ error: `Server configuration error: ${msg}` }, { status: 500 });
+    }
 
     // Verify admin role
     const { data: adminRow, error: roleError } = await adminClient
@@ -30,47 +37,67 @@ export async function GET() {
       .eq('id', user.id)
       .single();
 
-    if (roleError || adminRow?.role !== 'admin') {
+    if (roleError) {
+      console.error('[admin/users] Role lookup error:', roleError);
+      return NextResponse.json(
+        { error: `Role check failed: ${roleError.message}` },
+        { status: 500 },
+      );
+    }
+
+    if (adminRow?.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden: Admin access required.' }, { status: 403 });
     }
 
-    // Fetch all users with therapist profile status
+    // Fetch all users
     const { data: users, error: usersError } = await adminClient
       .from('users')
-      .select(`
-        id,
-        email,
-        full_name,
-        role,
-        avatar_url,
-        timezone,
-        created_at,
-        therapist_profiles(status, license_number, specializations)
-      `)
+      .select('id, email, full_name, role, avatar_url, timezone, created_at')
       .order('created_at', { ascending: false });
 
     if (usersError) {
       console.error('[admin/users] Error fetching users:', usersError);
-      return NextResponse.json({ error: usersError.message }, { status: 500 });
+      return NextResponse.json(
+        { error: `Failed to fetch users: ${usersError.message}` },
+        { status: 500 },
+      );
     }
 
-    const formatted = (users || []).map((u: any) => {
-      const therapistProfile = Array.isArray(u.therapist_profiles)
-        ? u.therapist_profiles[0]
-        : u.therapist_profiles;
+    if (!users || users.length === 0) {
+      return NextResponse.json({ success: true, users: [] });
+    }
 
-      return {
-        id: u.id,
-        email: u.email,
-        fullName: u.full_name || 'Anonymous User',
-        role: u.role,
-        avatarUrl: u.avatar_url,
-        timezone: u.timezone || 'UTC',
-        createdAt: u.created_at,
-        therapistStatus: therapistProfile?.status ?? null,
-        licenseNumber: therapistProfile?.license_number ?? null,
-      };
-    });
+    // Fetch therapist profiles separately to avoid join issues
+    const therapistIds = users.filter((u) => u.role === 'therapist').map((u) => u.id);
+
+    let therapistProfileMap: Record<string, { status: string; license_number: string }> = {};
+    if (therapistIds.length > 0) {
+      const { data: profiles, error: profilesError } = await adminClient
+        .from('therapist_profiles')
+        .select('user_id, status, license_number')
+        .in('user_id', therapistIds);
+
+      if (profilesError) {
+        console.error('[admin/users] Error fetching therapist profiles:', profilesError);
+        // Non-fatal — continue without profile data
+      } else {
+        therapistProfileMap = Object.fromEntries(
+          (profiles ?? []).map((p) => [p.user_id, p]),
+        );
+      }
+    }
+
+    const formatted = users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      fullName: u.full_name || 'Anonymous User',
+      role: u.role,
+      avatarUrl: u.avatar_url,
+      timezone: u.timezone || 'UTC',
+      createdAt: u.created_at,
+      therapistStatus: therapistProfileMap[u.id]?.status ?? null,
+      licenseNumber: therapistProfileMap[u.id]?.license_number ?? null,
+    }));
 
     return NextResponse.json({ success: true, users: formatted });
   } catch (err: unknown) {

@@ -10,13 +10,23 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
   try {
-    const adminClient = createAdminClient();
-    const { data, error } = await adminClient
-      .from('platform_settings')
-      .select('key, value');
+    let adminClient;
+    try {
+      adminClient = createAdminClient();
+    } catch (envErr: unknown) {
+      const msg = envErr instanceof Error ? envErr.message : String(envErr);
+      console.error('[admin/platform-settings] Failed to create admin client:', msg);
+      return NextResponse.json({ error: `Server configuration error: ${msg}` }, { status: 500 });
+    }
+
+    const { data, error } = await adminClient.from('platform_settings').select('key, value');
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[admin/platform-settings] DB error:', error);
+      return NextResponse.json(
+        { error: `Failed to fetch platform settings: ${error.message}` },
+        { status: 500 },
+      );
     }
 
     const settings: Record<string, string> = {};
@@ -27,6 +37,7 @@ export async function GET() {
     return NextResponse.json(settings);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
+    console.error('[admin/platform-settings] Unexpected error:', err);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
